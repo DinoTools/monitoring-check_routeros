@@ -33,7 +33,14 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         if self._cmd_options["ssl"]:
             if port is None:
                 port = 8729
-            ssl_ctx = ssl.create_default_context()
+
+            context_kwargs = {}
+            if self._cmd_options["ssl_cafile"]:
+                context_kwargs["cafile"] = self._cmd_options["ssl_cafile"]
+            if self._cmd_options["ssl_capath"]:
+                context_kwargs["capath"] = self._cmd_options["ssl_capath"]
+
+            ssl_ctx = ssl.create_default_context(**context_kwargs)
 
             if self._cmd_options["ssl_force_no_certificate"]:
                 ssl_ctx.check_hostname = False
@@ -67,13 +74,15 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 @click.option("--username", required=True)
 @click.option("--password", required=True)
 @click.option("--ssl/--no-ssl", "use_ssl", default=True)
+@click.option("--ssl-cafile")
+@click.option("--ssl-capath")
 @click.option("--ssl-force-no-certificate", is_flag=True, default=False)
 @click.option("--ssl-verify/--no-ssl-verify", default=True)
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
 def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str,
-        use_ssl: bool, ssl_force_no_certificate: bool, ssl_verify: bool,
+        use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str], ssl_force_no_certificate: bool, ssl_verify: bool,
         ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
@@ -82,6 +91,8 @@ def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, passw
     ctx.obj["username"] = username
     ctx.obj["password"] = password
     ctx.obj["ssl"] = use_ssl
+    ctx.obj["ssl_cafile"] = ssl_cafile
+    ctx.obj["ssl_capath"] = ssl_capath
     ctx.obj["ssl_force_no_certificate"] = ssl_force_no_certificate
     ctx.obj["ssl_verify"] = ssl_verify
     ctx.obj["ssl_verify_hostname"] = ssl_verify_hostname

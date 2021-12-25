@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
-from typing import Optional, Tuple
+import ssl
+from typing import Optional, Tuple, Type
 
 import click
 import librouteros
@@ -16,25 +17,64 @@ class BooleanContext(nagiosplugin.Context):
         )
 
 
-def connect(ctx) -> librouteros.api.Api:
+def connect(ctx) -> Type[librouteros.api.Api]:
+    def wrap_socket(socket):
+        return ssl_ctx.wrap_socket(socket, server_hostname=ctx.obj["host"])
+
+    port = ctx.obj["port"]
+    extra_kwargs = {}
+    if ctx.obj["ssl"]:
+        if port is None:
+            port = 8729
+        ssl_ctx = ssl.create_default_context()
+
+        if ctx.obj["ssl_force_no_certificate"]:
+            ssl_ctx.check_hostname = False
+            ssl_ctx.set_ciphers("ADH:@SECLEVEL=0")
+        elif not ctx.obj["ssl_verify"]:
+            # We have do disable hostname check if we disable certificate verification
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+        elif not ctx.obj["ssl_verify_hostname"]:
+            ssl_ctx.check_hostname = False
+
+        extra_kwargs["ssl_wrapper"] = wrap_socket
+    else:
+        if port is None:
+            port = 8728
+
     api = librouteros.connect(
         host=ctx.obj["host"],
         username=ctx.obj["username"],
-        password=ctx.obj["password"]
+        password=ctx.obj["password"],
+        port=port,
+        **extra_kwargs
     )
     return api
 
 
 @click.group()
 @click.option("--host", required=True)
+@click.option("--port", default=None)
 @click.option("--username", required=True)
 @click.option("--password", required=True)
+@click.option("--ssl/--no-ssl", "use_ssl", default=True)
+@click.option("--ssl-force-no-certificate", is_flag=True, default=False)
+@click.option("--ssl-verify/--no-ssl-verify", default=True)
+@click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.pass_context
-def cli(ctx, host, username, password):
+def cli(ctx, host: str, port: int, username: str, password: str,
+        use_ssl: bool, ssl_force_no_certificate: bool, ssl_verify: bool,
+        ssl_verify_hostname: bool):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
+    ctx.obj["port"] = port
     ctx.obj["username"] = username
     ctx.obj["password"] = password
+    ctx.obj["ssl"] = use_ssl
+    ctx.obj["ssl_force_no_certificate"] = ssl_force_no_certificate
+    ctx.obj["ssl_verify"] = ssl_verify
+    ctx.obj["ssl_verify_hostname"] = ssl_verify_hostname
 
 
 #########################

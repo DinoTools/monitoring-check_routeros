@@ -62,10 +62,11 @@ def connect(ctx) -> Type[librouteros.api.Api]:
 @click.option("--ssl-force-no-certificate", is_flag=True, default=False)
 @click.option("--ssl-verify/--no-ssl-verify", default=True)
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
+@click.option("-v", "--verbose", count=True)
 @click.pass_context
 def cli(ctx, host: str, port: int, username: str, password: str,
         use_ssl: bool, ssl_force_no_certificate: bool, ssl_verify: bool,
-        ssl_verify_hostname: bool):
+        ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
     ctx.obj["port"] = port
@@ -75,6 +76,7 @@ def cli(ctx, host: str, port: int, username: str, password: str,
     ctx.obj["ssl_force_no_certificate"] = ssl_force_no_certificate
     ctx.obj["ssl_verify"] = ssl_verify
     ctx.obj["ssl_verify_hostname"] = ssl_verify_hostname
+    ctx.obj["verbose"] = verbose
 
 
 #########################
@@ -178,7 +180,7 @@ def interface_vrrp(ctx, name, master):
         BooleanContext("running")
     )
 
-    check.main()
+    check.main(verbose=ctx.obj["verbose"])
 
 
 #########################
@@ -300,7 +302,7 @@ def tool_ping(ctx, address, packet_loss_warning, packet_loss_critical, ttl_warni
         critical=ttl_critical
     ))
 
-    check.main()
+    check.main(verbose=ctx.obj["verbose"])
 
 
 if __name__ == "__main__":

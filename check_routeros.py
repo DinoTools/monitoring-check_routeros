@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import re
 import ssl
-from typing import Optional, Tuple, Type
+from typing import Any, Dict, Optional, Tuple, Type
 
 import click
 import librouteros
@@ -17,40 +17,44 @@ class BooleanContext(nagiosplugin.Context):
         )
 
 
-def connect(ctx) -> Type[librouteros.api.Api]:
-    def wrap_socket(socket):
-        return ssl_ctx.wrap_socket(socket, server_hostname=ctx.obj["host"])
+class RouterOSCheckResource(nagiosplugin.Resource):
+    def __init__(self, cmd_options: Dict[str, Any]):
+        self._cmd_options = cmd_options
 
-    port = ctx.obj["port"]
-    extra_kwargs = {}
-    if ctx.obj["ssl"]:
-        if port is None:
-            port = 8729
-        ssl_ctx = ssl.create_default_context()
+    def _connect_api(self) -> librouteros.api.Api:
+        def wrap_socket(socket):
+            return ssl_ctx.wrap_socket(socket, server_hostname=self._cmd_options["host"])
 
-        if ctx.obj["ssl_force_no_certificate"]:
-            ssl_ctx.check_hostname = False
-            ssl_ctx.set_ciphers("ADH:@SECLEVEL=0")
-        elif not ctx.obj["ssl_verify"]:
-            # We have do disable hostname check if we disable certificate verification
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-        elif not ctx.obj["ssl_verify_hostname"]:
-            ssl_ctx.check_hostname = False
+        port = self._cmd_options["port"]
+        extra_kwargs = {}
+        if self._cmd_options["ssl"]:
+            if port is None:
+                port = 8729
+            ssl_ctx = ssl.create_default_context()
 
-        extra_kwargs["ssl_wrapper"] = wrap_socket
-    else:
-        if port is None:
-            port = 8728
+            if self._cmd_options["ssl_force_no_certificate"]:
+                ssl_ctx.check_hostname = False
+                ssl_ctx.set_ciphers("ADH:@SECLEVEL=0")
+            elif not self._cmd_options["ssl_verify"]:
+                # We have do disable hostname check if we disable certificate verification
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+            elif not self._cmd_options["ssl_verify_hostname"]:
+                ssl_ctx.check_hostname = False
 
-    api = librouteros.connect(
-        host=ctx.obj["host"],
-        username=ctx.obj["username"],
-        password=ctx.obj["password"],
-        port=port,
-        **extra_kwargs
-    )
-    return api
+            extra_kwargs["ssl_wrapper"] = wrap_socket
+        else:
+            if port is None:
+                port = 8728
+
+        api = librouteros.connect(
+            host=self._cmd_options["host"],
+            username=self._cmd_options["username"],
+            password=self._cmd_options["password"],
+            port=port,
+            **extra_kwargs
+        )
+        return api
 
 
 @click.group()
@@ -82,11 +86,12 @@ def cli(ctx, host: str, port: int, username: str, password: str,
 #########################
 # Check: Interface VRRP #
 #########################
-class InterfaceVrrpCheck(nagiosplugin.Resource):
+class InterfaceVrrpCheck(RouterOSCheckResource):
     name = "VRRP"
 
-    def __init__(self, api, name, master_must):
-        self._api = api
+    def __init__(self, cmd_options, name, master_must):
+        super().__init__(cmd_options=cmd_options)
+
         self._name = name
         self.backup = None
         self.disabled = None
@@ -98,7 +103,8 @@ class InterfaceVrrpCheck(nagiosplugin.Resource):
 
     def probe(self):
         key_name = librouteros.query.Key("name")
-        call = self._api.path(
+        api = self._connect_api()
+        call = api.path(
             "/interface/vrrp"
         ).select(
             key_name,
@@ -165,11 +171,9 @@ class InterfaceVrrpMaster(BooleanContext):
 @click.option("--master", default=False)
 @click.pass_context
 def interface_vrrp(ctx, name, master):
-    api = connect(ctx)
-
     check = nagiosplugin.Check(
         InterfaceVrrpCheck(
-            api=api,
+            cmd_options=ctx.obj,
             name=name,
             master_must=master,
         ),
@@ -186,11 +190,12 @@ def interface_vrrp(ctx, name, master):
 #########################
 # Tool Ping Check       #
 #########################
-class ToolPingCheck(nagiosplugin.Resource):
+class ToolPingCheck(RouterOSCheckResource):
     name = "PING"
 
-    def __init__(self, api, address):
-        self._api = api
+    def __init__(self, cmd_options, address):
+        super().__init__(cmd_options=cmd_options)
+
         self._address = address
         self._max_packages = 1
 
@@ -202,7 +207,8 @@ class ToolPingCheck(nagiosplugin.Resource):
             return None, None
 
         params = {"address": self._address, "count": self._max_packages}
-        call = self._api("/ping", **params)
+        api = self._connect_api()
+        call = api("/ping", **params)
         results = tuple(call)
         result = results[-1]
 
@@ -262,11 +268,9 @@ class ToolPingCheck(nagiosplugin.Resource):
 @click.option("--ttl-critical")
 @click.pass_context
 def tool_ping(ctx, address, packet_loss_warning, packet_loss_critical, ttl_warning, ttl_critical):
-    api = connect(ctx)
-
     check = nagiosplugin.Check(
         ToolPingCheck(
-            api=api,
+            cmd_options=ctx.obj,
             address=address
         )
     )

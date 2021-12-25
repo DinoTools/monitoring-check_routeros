@@ -23,7 +23,10 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
     def _connect_api(self) -> librouteros.api.Api:
         def wrap_socket(socket):
-            return ssl_ctx.wrap_socket(socket, server_hostname=self._cmd_options["host"])
+            server_hostname: Optional[str] = self._cmd_options["hostname"]
+            if server_hostname is None:
+                server_hostname = self._cmd_options["host"]
+            return ssl_ctx.wrap_socket(socket, server_hostname=server_hostname)
 
         port = self._cmd_options["port"]
         extra_kwargs = {}
@@ -59,6 +62,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
 @click.group()
 @click.option("--host", required=True)
+@click.option("--hostname")
 @click.option("--port", default=None)
 @click.option("--username", required=True)
 @click.option("--password", required=True)
@@ -68,11 +72,12 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
-def cli(ctx, host: str, port: int, username: str, password: str,
+def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str,
         use_ssl: bool, ssl_force_no_certificate: bool, ssl_verify: bool,
         ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
+    ctx.obj["hostname"] = hostname
     ctx.obj["port"] = port
     ctx.obj["username"] = username
     ctx.obj["password"] = password

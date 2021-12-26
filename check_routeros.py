@@ -5,7 +5,7 @@
 import logging
 import re
 import ssl
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, Optional, Tuple
 
 import click
 import librouteros
@@ -89,8 +89,8 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
 def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str,
-        use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str], ssl_force_no_certificate: bool, ssl_verify: bool,
-        ssl_verify_hostname: bool, verbose: int):
+        use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str], ssl_force_no_certificate: bool,
+        ssl_verify: bool, ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
     ctx.obj["hostname"] = hostname

@@ -1,9 +1,6 @@
 # SPDX-FileCopyrightText: none
 # SPDX-License-Identifier: CC0-1.0
 
-# We exclude src/ssdeep-lib/ from some check because we don't
-# want to fix external code in this repository
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
@@ -91,3 +88,11 @@ repos:
     rev: v0.14.0
     hooks:
       - id: reuse
+
+ci:
+  autofix_commit_msg: |
+    * - auto fixes from pre-commit hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: false
+  autoupdate_commit_msg: 'ci - pre-commit autoupdate'

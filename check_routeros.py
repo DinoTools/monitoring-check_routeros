@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import logging
 import re
 import ssl
 from typing import Any, Dict, Optional, Tuple, Type
@@ -7,6 +8,8 @@ import click
 import librouteros
 import librouteros.query
 import nagiosplugin
+
+logger = logging.getLogger('nagiosplugin')
 
 
 class BooleanContext(nagiosplugin.Context):
@@ -28,6 +31,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                 server_hostname = self._cmd_options["host"]
             return ssl_ctx.wrap_socket(socket, server_hostname=server_hostname)
 
+        logger.info("Connecting to device ...")
         port = self._cmd_options["port"]
         extra_kwargs = {}
         if self._cmd_options["ssl"]:
@@ -120,6 +124,8 @@ class InterfaceVrrpCheck(RouterOSCheckResource):
     def probe(self):
         key_name = librouteros.query.Key("name")
         api = self._connect_api()
+
+        logger.info("Fetching data ...")
         call = api.path(
             "/interface/vrrp"
         ).select(
@@ -224,6 +230,8 @@ class ToolPingCheck(RouterOSCheckResource):
 
         params = {"address": self._address, "count": self._max_packages}
         api = self._connect_api()
+
+        logger.info("Call /ping command ...")
         call = api("/ping", **params)
         results = tuple(call)
         result = results[-1]

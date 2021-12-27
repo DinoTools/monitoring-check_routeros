@@ -58,6 +58,7 @@ Subcommands/Checks
 Subcommand     | Description
 ---------------|-------------
 interface.vrrp | Check the state of an VRRP interface
+system.uptime  | Check the uptime
 tool.ping      | Run the ping command on the device
 
 

@@ -213,6 +213,59 @@ def interface_vrrp(ctx, name, master):
 
 
 #########################
+# System Uptime         #
+#########################
+class SystemUptimeResource(RouterOSCheckResource):
+    name = "UPTIME"
+
+    def __init__(self, cmd_options):
+        super().__init__(cmd_options=cmd_options)
+
+    def probe(self):
+        api = self._connect_api()
+
+        logger.info("Fetching data ...")
+        call = api.path(
+            "/system/resource"
+        ).select(
+            librouteros.query.Key("uptime"),
+        )
+        results = tuple(call)
+        result = results[0]
+
+        m = re.compile(r"(?P<hours>\d+)h(?P<minutes>\d+)m(?P<seconds>\d+)s").match(result["uptime"])
+        if not m:
+            raise ValueError("Unable to parse uptime")
+
+        uptime = int(m.group("hours")) * 60 * 60 + \
+            int(m.group("minutes")) * 60 + \
+            int(m.group("seconds"))
+
+        yield nagiosplugin.Metric(
+            name="uptime",
+            value=uptime,
+            uom="s",
+            min=0,
+        )
+
+
+@cli.command("system.uptime")
+@click.pass_context
+@nagiosplugin.guarded
+def system_uptime(ctx):
+    check = nagiosplugin.Check(
+        SystemUptimeResource(
+            cmd_options=ctx.obj,
+        ),
+        nagiosplugin.ScalarContext(
+            name="uptime",
+        )
+    )
+
+    check.main(verbose=ctx.obj["verbose"])
+
+
+#########################
 # Tool Ping Check       #
 #########################
 class ToolPingCheck(RouterOSCheckResource):

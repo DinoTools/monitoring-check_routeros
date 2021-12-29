@@ -75,7 +75,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         return api
 
     @staticmethod
-    def parse_routeros_time(time_string: str):
+    def parse_routeros_time(time_string: str) -> int:
         m = re.compile(r"(?P<hours>\d+)h(?P<minutes>\d+)m(?P<seconds>\d+)s").match(time_string)
         if not m:
             raise ValueError("Unable to parse time")
@@ -520,17 +520,9 @@ class SystemUptimeResource(RouterOSCheckResource):
         results = tuple(call)
         result = results[0]
 
-        m = re.compile(r"(?P<hours>\d+)h(?P<minutes>\d+)m(?P<seconds>\d+)s").match(result["uptime"])
-        if not m:
-            raise ValueError("Unable to parse uptime")
-
-        uptime = int(m.group("hours")) * 60 * 60 + \
-            int(m.group("minutes")) * 60 + \
-            int(m.group("seconds"))
-
         yield nagiosplugin.Metric(
             name="uptime",
-            value=uptime,
+            value=self.parse_routeros_time(result["uptime"]),
             uom="s",
             min=0,
         )

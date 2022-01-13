@@ -55,12 +55,16 @@ In the example below you will see how to get help for the ```tool.ping``` subcom
 Subcommands/Checks
 ------------------
 
-Subcommand     | Description
----------------|-------------
-interface.vrrp | Check the state of an VRRP interface
-system.uptime  | Check the uptime
-tool.ping      | Run the ping command on the device
+All commands require at least `api` and `read` permissions.
+The permissions documented in the table are additional permissions.
 
+| Subcommand             | Permissions | Description                           |
+|------------------------|-------------|---------------------------------------|
+| interface.vrrp         | -           | Check the state of an VRRP interface  |
+| routing.ospf.neighbors | -           | Check if ospf neigbhors are reachable |
+| system.memory          | -           | Check system memory                   |
+| system.uptime          | -           | Check the uptime                      |
+| tool.ping              | test        | Run the ping command on the device    |
 
 Resources
 ---------

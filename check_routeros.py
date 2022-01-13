@@ -76,19 +76,20 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
     @staticmethod
     def parse_routeros_time(time_string: str) -> int:
-        def fetch_value(name: str, factor=1) -> int:
-            if not m or m.group(name) is None:
-                return 0
-            return int(m.group(name)) * factor
+        factors = {
+            "s": 1,
+            "m": 60,
+            "h": 60 * 60,
+            "d": 24 * 60 * 60
+        }
 
-        m = re.compile(r"((((?P<days>\d+)d)?(?P<hours>\d+)h)?(?P<minutes>\d+)m)?(?P<seconds>\d+)s").match(time_string)
-        if not m:
-            raise ValueError("Unable to parse time")
+        seconds = 0
+        for m in re.compile(r"(?P<value>\d+)(?P<type>[a-z]+)").finditer(time_string):
+            factor = factors.get(m.group("type"))
+            if factor is None:
+                raise ValueError(f"Unable to parse element '{m.group()}' of time string: '{time_string}'")
+            seconds += int(m.group("value")) * factor
 
-        seconds = fetch_value("seconds")
-        seconds += fetch_value("minutes", 60)
-        seconds += fetch_value("hours", 60 * 60)
-        seconds += fetch_value("days", 60 * 60 * 24)
         return seconds
 
     def get_routeros_select_keys(self) -> List[librouteros.query.Key]:

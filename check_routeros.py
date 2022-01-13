@@ -80,7 +80,8 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             "s": 1,
             "m": 60,
             "h": 60 * 60,
-            "d": 24 * 60 * 60
+            "d": 24 * 60 * 60,
+            "w": 7 * 24 * 60 * 60,
         }
 
         seconds = 0

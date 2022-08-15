@@ -1,10 +1,22 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
+from datetime import datetime
 
 import check_routeros
 
 
 class TestBase:
+    def test_parse_routeros_datetime(self):
+        check = check_routeros.RouterOSCheckResource(cmd_options={})
+        parsed_datetime = check.parse_reouteros_datetime("oct/13/2022 22:59:59")
+        assert parsed_datetime == datetime(year=2022, month=10, day=13, hour=22, minute=59, second=59)
+        parsed_datetime = check.parse_reouteros_datetime("sep/20/2021 13:43:12")
+        assert parsed_datetime == datetime(year=2021, month=9, day=20, hour=13, minute=43, second=12)
+
+        # Build Time 6.47.9 (long-term)
+        parsed_datetime = check.parse_reouteros_datetime("Feb/08/2021 12:48:33")
+        assert parsed_datetime == datetime(year=2021, month=2, day=8, hour=12, minute=48, second=33)
+
     def test_parse_routeros_time(self):
         check = check_routeros.RouterOSCheckResource(cmd_options={})
         assert check.parse_routeros_time("1s") == 1

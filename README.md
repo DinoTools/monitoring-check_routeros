@@ -58,14 +58,15 @@ Subcommands/Checks
 All commands require at least `api` and `read` permissions.
 The permissions documented in the table are additional permissions.
 
-| Subcommand             | Permissions | Description                                     |
-|------------------------|-------------|-------------------------------------------------|
-| interface.vrrp         | -           | Check the state of an VRRP interface            |
-| routing.ospf.neighbors | -           | Check if ospf neigbhors are reachable           |
-| routing.bgp.peers      | -           | Check if connection to BGP peers is established |
-| system.memory          | -           | Check system memory                             |
-| system.uptime          | -           | Check the uptime                                |
-| tool.ping              | test        | Run the ping command on the device              |
+| Subcommand             | Permissions | Description                                           |
+|------------------------|-------------|-------------------------------------------------------|
+| interface.vrrp         | -           | Check the state of an VRRP interface                  |
+| routing.ospf.neighbors | -           | Check if ospf neigbhors are reachable                 |
+| routing.bgp.peers      | -           | Check if connection to BGP peers is established       |
+| system.memory          | -           | Check system memory                                   |
+| system.license         | -           | Check the license level and deadline and renewal date |
+| system.uptime          | -           | Check the uptime                                      |
+| tool.ping              | test        | Run the ping command on the device                    |
 
 Resources
 ---------

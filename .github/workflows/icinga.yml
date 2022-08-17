@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+
+name: Test config with icinga2
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check_icinga_config:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - run: sudo apt-get update
+      - run: sudo apt-get install --no-install-recommends icinga2
+      - run: sudo rm -rf /etc/icinga2/conf.d/
+      - run: sudo mkdir -p /etc/icinga2/conf.d/
+      - run: sudo cp config/* /etc/icinga2/conf.d/
+      - run: sudo icinga2 daemon -C

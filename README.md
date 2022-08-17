@@ -60,6 +60,7 @@ The permissions documented in the table are additional permissions.
 
 | Subcommand             | Permissions | Description                                           |
 |------------------------|-------------|-------------------------------------------------------|
+| interface.gre          | -           | Check GRE interfaces/tunnels                          |
 | interface.vrrp         | -           | Check the state of an VRRP interface                  |
 | routing.ospf.neighbors | -           | Check if ospf neigbhors are reachable                 |
 | routing.bgp.peers      | -           | Check if connection to BGP peers is established       |

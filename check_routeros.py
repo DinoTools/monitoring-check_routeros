@@ -180,9 +180,6 @@ class ScalarPercentContext(nagiosplugin.ScalarContext):
         total_value = getattr(resource, self._total_name)
         regex = re.compile(r"(?P<value>\d+)(?P<unit>[%])")
 
-        print(regex.sub(replace, self._warning))
-        print(regex.sub(replace, self._critical))
-
         self.warning = nagiosplugin.Range(regex.sub(replace, self._warning))
         self.critical = nagiosplugin.Range(regex.sub(replace, self._critical))
 

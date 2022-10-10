@@ -223,6 +223,9 @@ def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, passw
     ctx.obj["ssl_verify_hostname"] = ssl_verify_hostname
     ctx.obj["verbose"] = verbose
 
+    runtime = nagiosplugin.Runtime()
+    runtime.verbose = verbose
+
 
 #########################
 # Check: Interface GRE #

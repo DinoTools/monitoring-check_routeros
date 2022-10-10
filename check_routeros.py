@@ -137,6 +137,8 @@ class RouterOSCheckResource(nagiosplugin.Resource):
     def get_routeros_metrics(self, result: Dict[str, Any], name_prefix="") -> List[nagiosplugin.Metric]:
         metrics = []
         for metric_value in self._routeros_metric_values:
+            if metric_value.get("missing_ok", False) and metric_value["name"] not in result:
+                continue
             value = result[metric_value["name"]]
             if metric_value["type"] is not None:
                 value = metric_value["type"](value)
@@ -793,8 +795,8 @@ class SystemLicenseResource(RouterOSCheckResource):
         if self.has_renewal:
             self._routeros_metric_values += [
                 {"name": "level", "type": None},
-                {"name": "deadline-at", "dst": "deadline-in", "type": days_left},
-                {"name": "next-renewal-at", "dst": "next-renewal-in", "type": days_left},
+                {"name": "deadline-at", "dst": "deadline-in", "type": days_left, "missing_ok": True},
+                {"name": "next-renewal-at", "dst": "next-renewal-in", "type": days_left, "missing_ok": True},
             ]
         else:
             self._routeros_metric_values += [
@@ -844,7 +846,7 @@ class SystemLicenseLevelContext(nagiosplugin.Context):
         super(SystemLicenseLevelContext, self).__init__(*args, **kwargs)
 
     def evaluate(self, metric, resource):
-        if self._levels is None or str(metric.value) in self._levels:
+        if self._levels is None or len(self._levels) == 0 or (metric.value) in self._levels:
             return nagiosplugin.Result(
                 nagiosplugin.Ok,
                 hint=f"License level is '{metric.value}'"

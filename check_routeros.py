@@ -846,7 +846,7 @@ class SystemLicenseLevelContext(nagiosplugin.Context):
         super(SystemLicenseLevelContext, self).__init__(*args, **kwargs)
 
     def evaluate(self, metric, resource):
-        if self._levels is None or len(self._levels) == 0 or (metric.value) in self._levels:
+        if self._levels is None or len(self._levels) == 0 or metric.value in self._levels:
             return nagiosplugin.Result(
                 nagiosplugin.Ok,
                 hint=f"License level is '{metric.value}'"

@@ -1,6 +1,28 @@
 check_routeros - Monitoring MikroTik devices
 ============================================
 
+<p align="center">
+  <a href="https://github.com/dinotools/monitoring-check_routeros/issues">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/dinotools/monitoring-check_routeros">
+  </a>
+  <a href="https://github.com/dinotools/monitoring-check_routeros/network">
+    <img alt="GitHub forks" src="https://img.shields.io/github/forks/dinotools/monitoring-check_routeros">
+  </a>
+  <a href="https://github.com/dinotools/monitoring-check_routeros/stargazers">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/dinotools/monitoring-check_routeros">
+  </a>
+  <a href="https://github.com/DinoTools/monitoring-check_routeros/blob/main/LICENSE.md">
+    <img alt="GitHub license" src="https://img.shields.io/github/license/dinotools/monitoring-check_routeros">
+  </a>
+  <a href="https://dinotools.github.io/monitoring-check_routeros">
+    <img alt="Documentation" src="https://github.com/DinoTools/monitoring-check_routeros/actions/workflows/docs.yml/badge.svg">
+  </a>
+  <a href="https://exchange.icinga.com/dinotools/check_routeros">
+    <img alt="Icinga Exchange" src="https://img.shields.io/badge/Icinga-Exchange-success">
+  </a>
+
+</p>
+
 This is a monitoring plugin for [Icinga](https://icinga.com/), [Nagios](https://www.nagios.org/) and other compatible monitoring solutions to check [MikroTik](https://mikrotik.com/) devices running RouterOS.
 It uses the API to fetch the required information.
 
@@ -74,11 +96,14 @@ The permissions documented in the table are additional permissions.
 | system.uptime          | -           | Check the uptime                                         |
 | tool.ping              | test        | Run the ping command on the device                       |
 
+To get more information about the available subcommands/checks haf a look at the [check_routeros Command Reference](https://dinotools.github.io/monitoring-check_routeros/cli/)
+
 Resources
 ---------
 
 - Git-Repository: https://github.com/DinoTools/monitoring-check_routeros
 - Issues: https://github.com/DinoTools/monitoring-check_routeros/issues
+- Documentation: https://dinotools.github.io/monitoring-check_routeros
 
 License
 -------

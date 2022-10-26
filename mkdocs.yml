@@ -1,0 +1,30 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+
+site_name: check_routeros
+site_description: Monitoring plugin to check MikroTik devices running RouterOS
+site_url: https://dinotools.github.io/monitoring-check_routeros/
+
+repo_name: DinoTools/monitoring-check_routeros
+repo_url: https://github.com/DinoTools/monitoring-check_routeros
+edit_uri: blob/main/docs/
+
+nav:
+    - Home: index.md
+    - cli.md
+    - License: LICENSE.md
+    - Issue Tracker: https://github.com/DinoTools/monitoring-check_routeros/issues
+    - Git Repo: https://github.com/DinoTools/monitoring-check_routeros
+
+docs_dir: docs
+
+theme:
+    name: material
+    # Don't load external fonts
+    font: false
+    icon:
+        repo: fontawesome/brands/github
+
+markdown_extensions:
+    - attr_list
+    - mkdocs-click

@@ -196,16 +196,55 @@ class ScalarPercentContext(nagiosplugin.ScalarContext):
 
 
 @click.group()
-@click.option("--host", required=True)
-@click.option("--hostname")
-@click.option("--port", default=None)
-@click.option("--username", required=True)
-@click.option("--password", required=True)
-@click.option("--ssl/--no-ssl", "use_ssl", default=True)
-@click.option("--ssl-cafile")
-@click.option("--ssl-capath")
-@click.option("--ssl-force-no-certificate", is_flag=True, default=False)
-@click.option("--ssl-verify/--no-ssl-verify", default=True)
+@click.option(
+    "--host",
+    required=True,
+    help="Hostname or IP address of the device to connect to",
+)
+@click.option(
+    "--hostname",
+    help="Use this hostname to check the SSL certificates",
+)
+@click.option(
+    "--port",
+    default=None,
+    help="The port to use. Defaults to 8728 for non SSL connections and 8729 for SSL connections",
+)
+@click.option(
+    "--username",
+    required=True,
+    help="The username of the monitoring user. Do NOT use a user with admin privileges",
+)
+@click.option(
+    "--password",
+    required=True,
+    help="The password of the monitoring user",
+)
+@click.option(
+    "--ssl/--no-ssl",
+    "use_ssl",
+    default=True,
+    help="Use a SSL encrypted connections to communicate with the device",
+)
+@click.option(
+    "--ssl-cafile",
+    help="Custom CA file to check SSL certificates",
+)
+@click.option(
+    "--ssl-capath",
+    help="Custom path to look for CA files to check SSL certificates",
+)
+@click.option(
+    "--ssl-force-no-certificate",
+    is_flag=True,
+    default=False,
+    help="Force an anonymous connection",
+)
+@click.option(
+    "--ssl-verify/--no-ssl-verify",
+    default=True,
+    help="Verify the SSL certificate",
+)
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
@@ -339,12 +378,36 @@ class InterfaceGRERunningContext(BooleanContext):
 
 
 @cli.command("interface.gre")
-@click.option("--name", "names", default=[], multiple=True)
-@click.option("--regex", "regex", default=False, is_flag=True)
-@click.option("--single", "single", default=False, is_flag=True)
-@click.option("--ignore-disabled/--no-ignore-disabled", default=True, is_flag=True)
+@click.option(
+    "--name",
+    "names",
+    default=[],
+    multiple=True,
+    help="The name of the GRE interface to monitor. This can be specified multiple times",
+)
+@click.option(
+    "--regex",
+    "regex",
+    default=False,
+    is_flag=True,
+    help="Treat the specified names as regular expressions and try to find all matching interfaces. (Default: not set)",
+)
+@click.option(
+    "--single",
+    "single",
+    default=False,
+    is_flag=True,
+    help="If set the check expects the interface to exist",
+)
+@click.option(
+    "--ignore-disabled/--no-ignore-disabled",
+    default=True,
+    is_flag=True,
+    help="Ignore disabled interfaces",
+)
 @click.pass_context
 def interface_gre(ctx, names, regex, single, ignore_disabled):
+    """Check the state of a GRE interface."""
     resource = InterfaceGREResource(
         cmd_options=ctx.obj,
         names=names,
@@ -468,10 +531,19 @@ class InterfaceVrrpMaster(BooleanContext):
 
 
 @cli.command("interface.vrrp")
-@click.option("--name", required=True)
-@click.option("--master", default=False)
+@click.option(
+    "--name",
+    required=True,
+    help="The name of the VRRP interface to check",
+)
+@click.option(
+    "--master",
+    default=False,
+    help="If set the interface must be master",
+)
 @click.pass_context
 def interface_vrrp(ctx, name, master):
+    """Check the state of VRRP interfaces"""
     check = nagiosplugin.Check(
         InterfaceVrrpCheck(
             cmd_options=ctx.obj,
@@ -608,9 +680,27 @@ class RoutingBGPPeerSummary(nagiosplugin.Summary):
 
 
 @cli.command("routing.bgp.peers")
-@click.option("--name", "names", default=[], multiple=True)
-@click.option("--regex", "regex", default=False, is_flag=True)
-@click.option("--single", "single", default=False, is_flag=True)
+@click.option(
+    "--name",
+    "names",
+    default=[],
+    multiple=True,
+    help="The name of the BGP peer to check. This can be specified multiple times",
+)
+@click.option(
+    "--regex",
+    "regex",
+    default=False,
+    is_flag=True,
+    help="Treat the specified names as regular expressions and try to find all matching peers. (Default: not set)",
+)
+@click.option(
+    "--single",
+    "single",
+    default=False,
+    is_flag=True,
+    help="If set the check expects the peer to exist",
+)
 @click.pass_context
 def routing_bgp_peer(ctx, names, regex, single):
     resource = RoutingBGPPeerResource(
@@ -745,10 +835,19 @@ class RoutingOSPFNeighborState(BooleanContext):
 
 
 @cli.command("routing.ospf.neighbors")
-@click.option("--instance", required=True)
-@click.option("--router-id", required=True)
+@click.option(
+    "--instance",
+    required=True,
+    help="The name of the OSPF instance",
+)
+@click.option(
+    "--router-id",
+    required=True,
+    help="The ID of the neighbor router",
+)
 @click.pass_context
 def routing_ospf_neighbors(ctx, instance, router_id):
+    """Check the state of an OSPF neighbor"""
     resource = RoutingOSPFNeighborResource(
         cmd_options=ctx.obj,
         instance=instance,
@@ -1309,9 +1408,22 @@ class SystemMemorySummary(nagiosplugin.summary.Summary):
 
 
 @cli.command("system.memory")
-@click.option("--used/--free", is_flag=True, default=True)
-@click.option("--warning", required=True)
-@click.option("--critical", required=True)
+@click.option(
+    "--used/--free",
+    is_flag=True,
+    default=True,
+    help="Set if used or free memory should be checked. (Default: used)",
+)
+@click.option(
+    "--warning",
+    required=True,
+    help="Warning threshold in % or MB. Example (20% oder 20 = 20MB)",
+)
+@click.option(
+    "--critical",
+    required=True,
+    help="Critical threshold in % or MB. Example (20% oder 20 = 20MB)",
+)
 @click.pass_context
 @nagiosplugin.guarded
 def system_memory(ctx, used, warning, critical):
@@ -1384,13 +1496,16 @@ class SystemPowerResource(RouterOSCheckResource):
 @cli.command("system.power")
 @click.option(
     "--warning",
+    help="Warning threshold for total power consumption",
 )
 @click.option(
     "--critical",
+    help="Critical threshold for total power consumption",
 )
 @click.pass_context
 @nagiosplugin.guarded
 def system_power(ctx, warning, critical):
+    """Check the total power consumption of a device. This might not be available on all devices"""
     check = nagiosplugin.Check(
         SystemPowerResource(
             cmd_options=ctx.obj,
@@ -1506,6 +1621,7 @@ class SystemPsuResource(RouterOSCheckResource):
 @click.pass_context
 @nagiosplugin.guarded
 def system_psu(ctx, warning_values, critical_values):
+    """Check the power supply units (PSU)"""
     check = nagiosplugin.Check()
 
     psu_resource = SystemPsuResource(
@@ -1717,6 +1833,7 @@ class SystemUptimeResource(RouterOSCheckResource):
 @click.pass_context
 @nagiosplugin.guarded
 def system_uptime(ctx):
+    """Get Uptime of a device"""
     check = nagiosplugin.Check(
         SystemUptimeResource(
             cmd_options=ctx.obj,
@@ -1805,13 +1922,30 @@ class ToolPingCheck(RouterOSCheckResource):
 
 
 @cli.command("tool.ping")
-@click.option("--address", required=True)
-@click.option("--packet-loss-warning")
-@click.option("--packet-loss-critical")
-@click.option("--ttl-warning")
-@click.option("--ttl-critical")
+@click.option(
+    "--address",
+    required=True,
+    help="Address of device to ping",
+)
+@click.option(
+    "--packet-loss-warning",
+    help="Warning threshold for packet loss",
+)
+@click.option(
+    "--packet-loss-critical",
+    help="Critical threshold for packet loss",
+)
+@click.option(
+    "--ttl-warning",
+    help="Warning threshold for the Time-To-Live (TTL) value",
+)
+@click.option(
+    "--ttl-critical",
+    help="Critical threshold for the Time-To-Live (TTL) value",
+)
 @click.pass_context
 def tool_ping(ctx, address, packet_loss_warning, packet_loss_critical, ttl_warning, ttl_critical):
+    """Execute a ping command on the device to check other devices"""
     check = nagiosplugin.Check(
         ToolPingCheck(
             cmd_options=ctx.obj,

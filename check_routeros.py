@@ -87,7 +87,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             "feb": 2,
             "mar": 3,
             "apr": 4,
-            "mai": 5,
+            "may": 5,
             "jun": 6,
             "jul": 7,
             "aug": 8,

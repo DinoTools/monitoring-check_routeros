@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.5.1 - 2023-03-06
+------------------
+
+- Add help text for command options
+- Add script to generate documention
+- Fix typo in name of month
+
 0.5 - 2022-10-25
 ----------------
 

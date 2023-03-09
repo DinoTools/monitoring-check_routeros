@@ -16,6 +16,15 @@ import nagiosplugin
 logger = logging.getLogger('nagiosplugin')
 
 
+def escape_filename(value):
+    value = re.sub(r"[^\w\s-]", "_", value).strip().lower()
+    return re.sub(r"[-\s]+", '-', value)
+
+
+class MissingValue(ValueError):
+    pass
+
+
 class BooleanContext(nagiosplugin.Context):
     def performance(self, metric, resource):
         return nagiosplugin.performance.Performance(
@@ -33,6 +42,23 @@ class RouterOSCheckResource(nagiosplugin.Resource):
     def __init__(self, cmd_options: Dict[str, Any]):
         self._cmd_options = cmd_options
         self._routeros_metric_values: List[Dict[str, Any]] = []
+        self.current_time = datetime.now()
+
+    @staticmethod
+    def _calc_rate(
+            cookie: nagiosplugin.Cookie,
+            name: str,
+            cur_value: int,
+            elapsed_seconds: Optional[float],
+            factor: int
+    ) -> float:
+        old_value: Optional[int] = cookie.get(name)
+        cookie[name] = cur_value
+        if old_value is None:
+            raise MissingValue(f"Unable to find old value for '{name}'")
+        if elapsed_seconds is None:
+            raise MissingValue("Unable to get elapsed seconds")
+        return (cur_value - old_value) / elapsed_seconds * factor
 
     def _connect_api(self) -> librouteros.api.Api:
         def wrap_socket(socket):
@@ -135,14 +161,30 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             keys.append(librouteros.query.Key(metric_value["name"]))
         return keys
 
-    def get_routeros_metrics(self, result: Dict[str, Any], name_prefix="") -> List[nagiosplugin.Metric]:
+    def get_routeros_metrics(self, result: Dict[str, Any], name_prefix="", cookie=None) -> List[nagiosplugin.Metric]:
         metrics = []
+
+        elapsed_seconds = None
+        if cookie:
+            last_time_tuple = cookie.get("last_time")
+            if isinstance(last_time_tuple, (list, tuple)):
+                last_time = datetime(*last_time_tuple[0:6])
+                delta_time = self.current_time - last_time
+                elapsed_seconds = delta_time.total_seconds()
+
+        #
         for metric_value in self._routeros_metric_values:
-            if metric_value.get("missing_ok", False) and metric_value["name"] not in result:
+            metric_value_name = metric_value["name"]
+            if metric_value.get("missing_ok", False) and metric_value_name not in result:
                 continue
-            value = result[metric_value["name"]]
+
+            value = result[metric_value_name]
             if metric_value["type"] is not None:
-                value = metric_value["type"](value)
+                try:
+                    value = metric_value["type"](value)
+                except ValueError as e:
+                    logger.warning(f"Error parsing value with name {metric_value_name}", exc_info=True)
+                    raise e
 
             extra_kwargs = {}
             for n in ("min", "max", "uom"):
@@ -151,11 +193,36 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
             metrics.append(
                 nagiosplugin.Metric(
-                    name=name_prefix + metric_value.get("dst", metric_value["name"]),
+                    name=name_prefix + metric_value.get("dst", metric_value_name),
                     value=value,
                     **extra_kwargs,
                 )
             )
+
+            if metric_value.get("rate"):
+                try:
+                    rate_value = self._calc_rate(
+                        cookie=cookie,
+                        name=metric_value_name,
+                        cur_value=value,
+                        elapsed_seconds=elapsed_seconds,
+                        factor=metric_value.get("rate_factor", 1)
+                    )
+                    metrics.append(
+                        nagiosplugin.Metric(
+                            name=f"{name_prefix}{metric_value.get('dst', metric_value_name)}_rate",
+                            value=rate_value,
+                            uom=metric_value.get("rate_uom"),
+                            min=metric_value.get("rate_min"),
+                            max=metric_value.get("rate_max"),
+                        )
+                    )
+                except MissingValue as e:
+                    logger.debug(f"{e}", exc_info=e)
+
+        if cookie:
+            cookie["last_time"] = self.current_time.timetuple()
+
         return metrics
 
 
@@ -267,6 +334,239 @@ def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, passw
 
     runtime = nagiosplugin.Runtime()
     runtime.verbose = verbose
+
+
+#########################
+# Check: Interface #
+#########################
+class InterfaceResource(RouterOSCheckResource):
+    name = "Interface"
+
+    def __init__(
+            self,
+            cmd_options: Dict[str, Any],
+            names: List[str],
+            regex: bool,
+            single_interface: bool,
+            ignore_disabled: bool,
+            cookie_filename: str,
+    ):
+        super().__init__(cmd_options=cmd_options)
+
+        self._interface_data: Optional[Dict[str, Any]] = None
+        self.names: List[Union[Any]] = names
+        self.regex = regex
+        if self.regex:
+            regex_names = []
+            for name in names:
+                regex_names.append(re.compile(name))
+            self.names = regex_names
+        self.single_interface = single_interface
+        self.ignore_disabled = ignore_disabled
+        self.cookie_filename = cookie_filename
+
+        self._routeros_metric_values = [
+            {"name": "disabled", "type": bool},
+            {"name": "running", "type": bool},
+            {"name": "actual-mtu", "type": int, "min": 0},
+            {"name": "fp-rx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
+            {"name": "fp-rx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "fp-tx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
+            {"name": "fp-tx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "l2mtu", "type": int, "min": 0},
+            {"name": "link-downs", "type": int, "min": 0, "uom": "c"},
+            # {"name": "mtu", "type": int, "min": 0},
+            {"name": "rx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
+            {"name": "rx-drop", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "rx-error", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "rx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "tx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
+            {"name": "tx-drop", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "tx-error", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "tx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
+            {"name": "tx-queue-drop", "type": int, "min": 0, "uom": "c", "rate": True},
+        ]
+
+    def fetch_data(self) -> Dict[str, Dict]:
+        if self._interface_data:
+            return self._interface_data
+
+        api = self._connect_api()
+
+        logger.info("Fetching data ...")
+        call = api.path(
+            "/interface"
+        )
+        call_results = tuple(call)
+
+        self._interface_data = {}
+        for result in call_results:
+            if self.ignore_disabled and result["disabled"]:
+                continue
+            if len(self.names) == 0:
+                self._interface_data[result["name"]] = result
+            elif self.regex:
+                for name in self.names:
+                    if name.match(result["name"]):
+                        self._interface_data[result["name"]] = result
+            elif result["name"] in self.names:
+                self._interface_data[result["name"]] = result
+        return self._interface_data
+
+    @property
+    def interface_names(self):
+        return tuple(self.fetch_data().keys())
+
+    def probe(self):
+        routeros_metrics = []
+        data = self.fetch_data()
+
+        if self.single_interface:
+            if len(self.interface_names) == 1:
+                cookie_filename = self.cookie_filename.format(
+                    name=escape_filename(self.interface_names[0])
+                )
+                with nagiosplugin.Cookie(cookie_filename) as cookie:
+                    routeros_metrics += self.get_routeros_metrics(data[self.interface_names[0]], cookie=cookie)
+        else:
+            for name in self.interface_names:
+                cookie_filename = self.cookie_filename.format(
+                    name=escape_filename(name)
+                )
+                with nagiosplugin.Cookie(cookie_filename) as cookie:
+                    routeros_metrics += self.get_routeros_metrics(data[name], name_prefix=f"{name} ", cookie=cookie)
+
+        return routeros_metrics
+
+
+class InterfaceDisabledContext(BooleanContext):
+    def __init__(self, name, interface_name):
+        super().__init__(name=name)
+        self._interface_name = interface_name
+
+    def evaluate(self, metric, resource: InterfaceResource):
+        if metric.value is True:
+            return self.result_cls(
+                nagiosplugin.state.Warn,
+                hint="Interface '{self._interface_name}' is disabled",
+                metric=metric
+            )
+        return self.result_cls(nagiosplugin.state.Ok)
+
+
+class InterfaceRunningContext(BooleanContext):
+    def __init__(self, name, interface_name):
+        super().__init__(name=name)
+
+        self._interface_name = interface_name
+
+    def evaluate(self, metric, resource: InterfaceResource):
+        if metric.value is False:
+            return self.result_cls(
+                state=nagiosplugin.state.Warn,
+                hint=f"Interface '{self._interface_name}' not running",
+                metric=metric
+            )
+        return self.result_cls(nagiosplugin.state.Ok)
+
+
+@cli.command("interface")
+@click.option(
+    "--name",
+    "names",
+    default=[],
+    multiple=True,
+    help="The name of the GRE interface to monitor. This can be specified multiple times",
+)
+@click.option(
+    "--regex",
+    "regex",
+    default=False,
+    is_flag=True,
+    help="Treat the specified names as regular expressions and try to find all matching interfaces. (Default: not set)",
+)
+@click.option(
+    "--single",
+    "single",
+    default=False,
+    is_flag=True,
+    help="If set the check expects the interface to exist",
+)
+@click.option(
+    "--ignore-disabled/--no-ignore-disabled",
+    default=True,
+    is_flag=True,
+    help="Ignore disabled interfaces",
+)
+@click.option(
+    "--cookie-filename",
+    "cookie_filename",
+    default="/tmp/check_routeros_interface_{name}.data",
+    help=(
+        "The filename to use to store the information to calculate the rate. '{name}' will be replaced with an "
+        "internal uniq id. It Will create one file per interface."
+        "(Default: /tmp/check_routeros_interface_{name}.data)"
+    ),
+)
+@click.pass_context
+def interface(ctx, names, regex, single, ignore_disabled, cookie_filename):
+    """Check the state of a GRE interface."""
+    resource = InterfaceResource(
+        cmd_options=ctx.obj,
+        names=names,
+        regex=regex,
+        single_interface=single,
+        ignore_disabled=ignore_disabled,
+        cookie_filename=cookie_filename,
+    )
+    check = nagiosplugin.Check(
+        resource,
+    )
+
+    custom_metric_names = ["disabled", "running"]
+
+    if single:
+        if len(resource.interface_names) == 1:
+            name = resource.interface_names[0]
+            check.add(
+                InterfaceDisabledContext("disabled", interface_name=name),
+                InterfaceRunningContext("running", interface_name=name),
+            )
+            for metric_value in resource._routeros_metric_values:
+                if metric_value['name'] in custom_metric_names:
+                    continue
+                check.add(
+                    nagiosplugin.ScalarContext(metric_value['name']),
+                )
+                if metric_value.get("rate"):
+                    check.add(
+                        nagiosplugin.ScalarContext(f"{metric_value['name']}_rate"),
+                    )
+        else:
+            check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Unknown,
+                    f"Only one matching interface is allowed. Found {len(resource.interface_names)}"
+                )
+            )
+    else:
+        for name in resource.interface_names:
+            check.add(
+                InterfaceDisabledContext(f"{name} disabled", interface_name=name),
+                InterfaceRunningContext(f"{name} running", interface_name=name),
+            )
+            for metric_value in resource._routeros_metric_values:
+                if metric_value['name'] in custom_metric_names:
+                    continue
+                check.add(
+                    nagiosplugin.ScalarContext(f"{name} {metric_value['name']}"),
+                )
+                if metric_value.get("rate"):
+                    check.add(
+                        nagiosplugin.ScalarContext(f"{name} {metric_value['name']}_rate"),
+                    )
+
+    check.main(verbose=ctx.obj["verbose"])
 
 
 #########################

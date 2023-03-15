@@ -137,6 +137,26 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         )
 
     @staticmethod
+    def parse_routeros_speed(value_string: str) -> int:
+        factors = {
+            "": 1,
+            "K": 1000,
+            "M": 1000 * 1000,
+            "G": 1000 * 1000 * 1000,
+        }
+
+        m = re.compile(r"(?P<value>\d+)(?P<factor>[A-Z]*)bps").match(value_string)
+        if not m:
+            raise ValueError(f"Unable to parse speed string: '{value_string}'")
+
+        factor = factors.get(m.group("factor"))
+
+        if factor is None:
+            raise ValueError(f"Unable to parse element '{m.group()}' of speed string: '{value_string}'")
+
+        return int(m.group("value")) * factor
+
+    @staticmethod
     def parse_routeros_time(time_string: str) -> int:
         factors = {
             "s": 1,
@@ -154,6 +174,26 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             seconds += int(m.group("value")) * factor
 
         return seconds
+
+    @staticmethod
+    def prepare_thresholds(thresholds: List[str]):
+        results = {}
+        for threshold in thresholds:
+            name, _, value = threshold.partition(":")
+            if value is None or value == "":
+                logger.warning(f"Unable to parse threshold for {name}")
+            results[name] = value
+        return results
+
+    @staticmethod
+    def prepare_regex_thresholds(thresholds: List[str]):
+        results = {}
+        for threshold in thresholds:
+            name, _, value = threshold.partition(":")
+            if value is None or value == "":
+                logger.warning(f"Unable to parse threshold for {name}")
+            results[re.compile(name)] = value
+        return results
 
     def get_routeros_select_keys(self) -> List[librouteros.query.Key]:
         keys = []
@@ -186,18 +226,25 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                     logger.warning(f"Error parsing value with name {metric_value_name}", exc_info=True)
                     raise e
 
+            value = value * metric_value.get("factor", 1)
+
             extra_kwargs = {}
             for n in ("min", "max", "uom"):
                 if n in metric_value:
                     extra_kwargs[n] = metric_value[n]
 
-            metrics.append(
-                nagiosplugin.Metric(
-                    name=name_prefix + metric_value.get("dst", metric_value_name),
-                    value=value,
-                    **extra_kwargs,
+            dst_value_name = metric_value.get("dst_value_name")
+            if isinstance(dst_value_name, str):
+                result[dst_value_name] = value
+
+            if not metric_value.get("no_metric"):
+                metrics.append(
+                    nagiosplugin.Metric(
+                        name=name_prefix + metric_value.get("dst", metric_value_name),
+                        value=value,
+                        **extra_kwargs,
+                    )
                 )
-            )
 
             if metric_value.get("rate"):
                 try:
@@ -227,15 +274,18 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
 
 class ScalarPercentContext(nagiosplugin.ScalarContext):
-    def __init__(self, name, total_name: str, warning=None, critical=None,
-                 fmt_metric='{name} is {valueunit}', result_cls=nagiosplugin.Result):
+    def __init__(self, name, total_name: Optional[str] = None, total_value: Optional[Union[int, float]] = None,
+                 warning=None, critical=None, fmt_metric='{name} is {valueunit}', result_cls=nagiosplugin.Result):
         super(ScalarPercentContext, self).__init__(name, fmt_metric=fmt_metric, result_cls=result_cls)
 
         self._warning = warning
         self._critical = critical
         self._total_name = total_name
-        self.warning = None
-        self.critical = None
+        self._total_value = total_value
+        if self._total_value is None and self._total_name is None:
+            raise ValueError("At least total_value or total_name must be given.")
+        self.warning = nagiosplugin.Range(None)
+        self.critical = nagiosplugin.Range(None)
 
     def _prepare_ranges(self, metric, resource):
         def replace(m):
@@ -244,14 +294,16 @@ class ScalarPercentContext(nagiosplugin.ScalarContext):
             else:
                 raise ValueError("Unable to convert type")
 
-        if self.warning is not None and self.critical is not None:
-            return
+        if self._total_value is not None:
+            total_value = self._total_value
+        else:
+            total_value = getattr(resource, self._total_name)
+        regex = re.compile(r"(?P<value>[\d.]+)(?P<unit>[%])")
 
-        total_value = getattr(resource, self._total_name)
-        regex = re.compile(r"(?P<value>\d+)(?P<unit>[%])")
-
-        self.warning = nagiosplugin.Range(regex.sub(replace, self._warning))
-        self.critical = nagiosplugin.Range(regex.sub(replace, self._critical))
+        if self._warning is not None:
+            self.warning = nagiosplugin.Range(regex.sub(replace, self._warning))
+        if self._critical is not None:
+            self.critical = nagiosplugin.Range(regex.sub(replace, self._critical))
 
     def evaluate(self, metric, resource):
         self._prepare_ranges(metric, resource)
@@ -345,14 +397,18 @@ class InterfaceResource(RouterOSCheckResource):
     def __init__(
             self,
             cmd_options: Dict[str, Any],
+            check: nagiosplugin.Check,
             names: List[str],
             regex: bool,
             single_interface: bool,
             ignore_disabled: bool,
             cookie_filename: str,
+            warning_values: List[str],
+            critical_values: List[str],
     ):
         super().__init__(cmd_options=cmd_options)
 
+        self._check = check
         self._interface_data: Optional[Dict[str, Any]] = None
         self.names: List[Union[Any]] = names
         self.regex = regex
@@ -365,27 +421,196 @@ class InterfaceResource(RouterOSCheckResource):
         self.ignore_disabled = ignore_disabled
         self.cookie_filename = cookie_filename
 
+        self._parsed_warning_values: Dict[str, str] = self.prepare_thresholds(warning_values)
+        self._parsed_critical_values: Dict[str, str] = self.prepare_thresholds(critical_values)
+
         self._routeros_metric_values = [
-            {"name": "disabled", "type": bool},
-            {"name": "running", "type": bool},
-            {"name": "actual-mtu", "type": int, "min": 0},
-            {"name": "fp-rx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
-            {"name": "fp-rx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "fp-tx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
-            {"name": "fp-tx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "l2mtu", "type": int, "min": 0},
-            {"name": "link-downs", "type": int, "min": 0, "uom": "c"},
+            # Later values depend on the speed
+            {
+                "name": "speed",
+                "dst_value_name": "speed-byte",
+                "type": self.parse_routeros_speed,
+                "factor": 1 / 8,
+                "no_metric": True,
+            },
+            {
+                "name": "speed",
+                "type": self.parse_routeros_speed,
+                "min": 0,
+            },
+            {
+                "name": "disabled",
+                "type": bool,
+                "context_class": None,
+            },
+            {
+                "name": "running",
+                "type": bool,
+                "context_class": None,
+            },
+            {
+                "name": "actual-mtu",
+                "type": int,
+                "min": 0,
+            },
+            {
+                "name": "fp-rx-byte",
+                "type": int,
+                "min": 0,
+                "uom": "B",
+                "rate": True,
+                "rate_percent_total_name": "speed-byte",
+            },
+            {
+                "name": "fp-rx-packet",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "fp-tx-byte",
+                "type": int,
+                "min": 0,
+                "uom": "B",
+                "rate": True,
+                "rate_percent_total_name": "speed-byte",
+            },
+            {
+                "name": "fp-tx-packet",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "l2mtu",
+                "type": int,
+                "min": 0,
+            },
+            {
+                "name": "link-downs",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+            },
             # {"name": "mtu", "type": int, "min": 0},
-            {"name": "rx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
-            {"name": "rx-drop", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "rx-error", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "rx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "tx-byte", "type": int, "min": 0, "uom": "B", "rate": True},
-            {"name": "tx-drop", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "tx-error", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "tx-packet", "type": int, "min": 0, "uom": "c", "rate": True},
-            {"name": "tx-queue-drop", "type": int, "min": 0, "uom": "c", "rate": True},
+            {
+                "name": "rx-byte",
+                "type": int,
+                "min": 0,
+                "uom": "B",
+                "rate": True,
+                "rate_percent_total_name": "speed-byte",
+            },
+            {
+                "name": "rx-drop",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "rx-error",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "rx-packet",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+                "rate_percent_total_name": "speed-byte",
+            },
+            {
+                "name": "tx-byte",
+                "type": int,
+                "min": 0,
+                "uom": "B",
+                "rate": True,
+            },
+            {
+                "name": "tx-drop",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "tx-error",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "tx-packet",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True,
+            },
+            {
+                "name": "tx-queue-drop",
+                "type": int,
+                "min": 0,
+                "uom": "c",
+                "rate": True
+            },
         ]
+
+    def _add_contexts(self, name, values, metric_prefix=""):
+        self._check.add(
+            InterfaceDisabledContext(f"{metric_prefix.format(name=name)}disabled", interface_name=name),
+            InterfaceRunningContext(f"{metric_prefix.format(name=name)}running", interface_name=name),
+        )
+        custom_metric_names = ["disabled", "running"]
+
+        for metric_value in self._routeros_metric_values:
+            metric_value_name = metric_value.get("dst", metric_value["name"])
+            if metric_value_name in custom_metric_names:
+                continue
+
+            if metric_value.get("no_metric"):
+                continue
+
+            context_class = metric_value.get("context_class", nagiosplugin.ScalarContext)
+            self._check.add(
+                context_class(
+                    f"{metric_prefix.format(name=name)}{metric_value_name}",
+                    warning=self._parsed_warning_values.get(metric_value["name"]),
+                    critical=self._parsed_critical_values.get(metric_value["name"]),
+                )
+            )
+
+            if metric_value.get("rate"):
+                rate_percent_total_name = metric_value.get("rate_percent_total_name")
+                rate_total_value = None
+                if rate_percent_total_name:
+                    rate_total_value = values.get(rate_percent_total_name)
+
+                if rate_total_value is not None:
+                    rate_context_class_percent = metric_value.get("context_class", ScalarPercentContext)
+                    self._check.add(
+                        rate_context_class_percent(
+                            name=f"{metric_prefix.format(name=name)}{metric_value_name}_rate",
+                            total_value=rate_total_value,
+                            warning=self._parsed_warning_values.get(f"{metric_value['name']}_rate"),
+                            critical=self._parsed_critical_values.get(f"{metric_value['name']}_rate"),
+                        )
+                    )
+                else:
+                    rate_context_class = metric_value.get("context_class", nagiosplugin.ScalarContext)
+                    self._check.add(
+                        rate_context_class(
+                            name=f"{metric_prefix.format(name=name)}{metric_value_name}_rate",
+                            warning=self._parsed_warning_values.get(metric_value["name"]),
+                            critical=self._parsed_critical_values.get(metric_value["name"]),
+                        )
+                    )
 
     def fetch_data(self) -> Dict[str, Dict]:
         if self._interface_data:
@@ -394,6 +619,16 @@ class InterfaceResource(RouterOSCheckResource):
         api = self._connect_api()
 
         logger.info("Fetching data ...")
+        interface_ethernet_data = {}
+        call = api.path(
+            "/interface/ethernet"
+        )
+        call_results = tuple(call)
+        for result in call_results:
+            interface_ethernet_data[result["name"]] = {
+                "speed": result["speed"],
+            }
+
         call = api.path(
             "/interface"
         )
@@ -403,6 +638,10 @@ class InterfaceResource(RouterOSCheckResource):
         for result in call_results:
             if self.ignore_disabled and result["disabled"]:
                 continue
+
+            if result["name"] in interface_ethernet_data:
+                result.update(interface_ethernet_data[result["name"]])
+
             if len(self.names) == 0:
                 self._interface_data[result["name"]] = result
             elif self.regex:
@@ -428,6 +667,7 @@ class InterfaceResource(RouterOSCheckResource):
                 )
                 with nagiosplugin.Cookie(cookie_filename) as cookie:
                     routeros_metrics += self.get_routeros_metrics(data[self.interface_names[0]], cookie=cookie)
+                self._add_contexts(name=self.interface_names[0], values=data[self.interface_names[0]])
         else:
             for name in self.interface_names:
                 cookie_filename = self.cookie_filename.format(
@@ -435,6 +675,7 @@ class InterfaceResource(RouterOSCheckResource):
                 )
                 with nagiosplugin.Cookie(cookie_filename) as cookie:
                     routeros_metrics += self.get_routeros_metrics(data[name], name_prefix=f"{name} ", cookie=cookie)
+                self._add_contexts(name=name, values=data[name], metric_prefix="{name} ")
 
         return routeros_metrics
 
@@ -508,63 +749,53 @@ class InterfaceRunningContext(BooleanContext):
         "(Default: /tmp/check_routeros_interface_{name}.data)"
     ),
 )
+@click.option(
+    "warning_values",
+    "--value-warning",
+    multiple=True,
+    help=(
+            "Set a warning threshold for a value. "
+            "Example: If cpu1-load should be in the range of 10% to 20% you can set "
+            "--value-warning cpu-load:10:200 "
+            "Can be specified multiple times"
+    )
+)
+@click.option(
+    "critical_values",
+    "--value-critical",
+    multiple=True,
+    help=(
+        "Set a critical threshold for a value. "
+        "Example: If cpu1-load should be in the range of 10% to 20% you can set "
+        "--value-critical cpu-load:10:200 "
+        "Can be specified multiple times"
+    )
+)
 @click.pass_context
-def interface(ctx, names, regex, single, ignore_disabled, cookie_filename):
-    """Check the state of a GRE interface."""
+def interface(ctx, names, regex, single, ignore_disabled, cookie_filename, warning_values, critical_values):
+    """Check the state and the stats of interfaces"""
+    check = nagiosplugin.Check()
     resource = InterfaceResource(
         cmd_options=ctx.obj,
+        check=check,
         names=names,
         regex=regex,
         single_interface=single,
         ignore_disabled=ignore_disabled,
         cookie_filename=cookie_filename,
-    )
-    check = nagiosplugin.Check(
-        resource,
+        warning_values=warning_values,
+        critical_values=critical_values,
     )
 
-    custom_metric_names = ["disabled", "running"]
+    check.add(resource)
 
-    if single:
-        if len(resource.interface_names) == 1:
-            name = resource.interface_names[0]
-            check.add(
-                InterfaceDisabledContext("disabled", interface_name=name),
-                InterfaceRunningContext("running", interface_name=name),
+    if single and len(resource.interface_names) != 1:
+        check.results.add(
+            nagiosplugin.Result(
+                nagiosplugin.state.Unknown,
+                f"Only one matching interface is allowed. Found {len(resource.interface_names)}"
             )
-            for metric_value in resource._routeros_metric_values:
-                if metric_value['name'] in custom_metric_names:
-                    continue
-                check.add(
-                    nagiosplugin.ScalarContext(metric_value['name']),
-                )
-                if metric_value.get("rate"):
-                    check.add(
-                        nagiosplugin.ScalarContext(f"{metric_value['name']}_rate"),
-                    )
-        else:
-            check.results.add(
-                nagiosplugin.Result(
-                    nagiosplugin.state.Unknown,
-                    f"Only one matching interface is allowed. Found {len(resource.interface_names)}"
-                )
-            )
-    else:
-        for name in resource.interface_names:
-            check.add(
-                InterfaceDisabledContext(f"{name} disabled", interface_name=name),
-                InterfaceRunningContext(f"{name} running", interface_name=name),
-            )
-            for metric_value in resource._routeros_metric_values:
-                if metric_value['name'] in custom_metric_names:
-                    continue
-                check.add(
-                    nagiosplugin.ScalarContext(f"{name} {metric_value['name']}"),
-                )
-                if metric_value.get("rate"):
-                    check.add(
-                        nagiosplugin.ScalarContext(f"{name} {metric_value['name']}_rate"),
-                    )
+        )
 
     check.main(verbose=ctx.obj["verbose"])
 
@@ -1194,31 +1425,11 @@ class SystemCpuResource(RouterOSCheckResource):
         self.critical_regex_values: Dict[re.Pattern, str] = {}
 
         if self.use_regex:
-            self.warning_regex_values = self._prepare_regex_thresholds(warning_values)
-            self.critical_regex_values = self._prepare_regex_thresholds(critical_values)
+            self.warning_regex_values = self.prepare_regex_thresholds(warning_values)
+            self.critical_regex_values = self.prepare_regex_thresholds(critical_values)
         else:
-            self.warning_values = self._prepare_thresholds(warning_values)
-            self.critical_values = self._prepare_thresholds(critical_values)
-
-    @staticmethod
-    def _prepare_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[name] = value
-        return results
-
-    @staticmethod
-    def _prepare_regex_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[re.compile(name)] = value
-        return results
+            self.warning_values = self.prepare_thresholds(warning_values)
+            self.critical_values = self.prepare_thresholds(critical_values)
 
     def probe(self):
         key_cpu_load = librouteros.query.Key("cpu-load")
@@ -1386,31 +1597,11 @@ class SystemFanResource(RouterOSCheckResource):
         self.critical_regex_values: Dict[re.Pattern, str] = {}
 
         if self.use_regex:
-            self.warning_regex_values = self._prepare_regex_thresholds(warning_values)
-            self.critical_regex_values = self._prepare_regex_thresholds(critical_values)
+            self.warning_regex_values = self.prepare_regex_thresholds(warning_values)
+            self.critical_regex_values = self.prepare_regex_thresholds(critical_values)
         else:
-            self.warning_values = self._prepare_thresholds(warning_values)
-            self.critical_values = self._prepare_thresholds(critical_values)
-
-    @staticmethod
-    def _prepare_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[name] = value
-        return results
-
-    @staticmethod
-    def _prepare_regex_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[re.compile(name)] = value
-        return results
+            self.warning_values = self.prepare_thresholds(warning_values)
+            self.critical_values = self.prepare_thresholds(critical_values)
 
     def probe(self):
         api = self._connect_api()
@@ -1969,31 +2160,11 @@ class SystemTemperatureResource(RouterOSCheckResource):
         self.critical_regex_values: Dict[re.Pattern, str] = {}
 
         if self.use_regex:
-            self.warning_regex_values = self._prepare_regex_thresholds(warning_values)
-            self.critical_regex_values = self._prepare_regex_thresholds(critical_values)
+            self.warning_regex_values = self.prepare_regex_thresholds(warning_values)
+            self.critical_regex_values = self.prepare_regex_thresholds(critical_values)
         else:
-            self.warning_values = self._prepare_thresholds(warning_values)
-            self.critical_values = self._prepare_thresholds(critical_values)
-
-    @staticmethod
-    def _prepare_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[name] = value
-        return results
-
-    @staticmethod
-    def _prepare_regex_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[re.compile(name)] = value
-        return results
+            self.warning_values = self.prepare_thresholds(warning_values)
+            self.critical_values = self.prepare_thresholds(critical_values)
 
     def probe(self):
         api = self._connect_api()

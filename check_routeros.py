@@ -176,8 +176,18 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         return seconds
 
     @staticmethod
-    def prepare_thresholds(thresholds: List[str]):
-        results = {}
+    def prepare_override_values(override_values: List[str]) -> Dict[str, str]:
+        results: Dict[str, str] = {}
+        for override_value in override_values:
+            name, _, value = override_value.partition(":")
+            if value is None or value == "":
+                logger.warning(f"Unable to parse override value for {name}")
+            results[name] = value
+        return results
+
+    @staticmethod
+    def prepare_thresholds(thresholds: List[str]) -> Dict[str, str]:
+        results: Dict[str, str] = {}
         for threshold in thresholds:
             name, _, value = threshold.partition(":")
             if value is None or value == "":
@@ -186,8 +196,8 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         return results
 
     @staticmethod
-    def prepare_regex_thresholds(thresholds: List[str]):
-        results = {}
+    def prepare_regex_thresholds(thresholds: List[str]) -> Dict[re.Pattern, str]:
+        results: Dict[re.Pattern, str] = {}
         for threshold in thresholds:
             name, _, value = threshold.partition(":")
             if value is None or value == "":
@@ -406,6 +416,7 @@ class InterfaceResource(RouterOSCheckResource):
             cookie_filename: str,
             warning_values: List[str],
             critical_values: List[str],
+            override_values: List[str],
     ):
         super().__init__(cmd_options=cmd_options)
 
@@ -424,6 +435,7 @@ class InterfaceResource(RouterOSCheckResource):
 
         self._parsed_warning_values: Dict[str, str] = self.prepare_thresholds(warning_values)
         self._parsed_critical_values: Dict[str, str] = self.prepare_thresholds(critical_values)
+        self._parsed_override_values: Dict[str, str] = self.prepare_override_values(override_values)
 
         self._routeros_metric_values = [
             # Later values depend on the speed
@@ -645,6 +657,8 @@ class InterfaceResource(RouterOSCheckResource):
             if result["name"] in interface_ethernet_data:
                 result.update(interface_ethernet_data[result["name"]])
 
+            result.update(self._parsed_override_values)
+
             if len(self.names) == 0:
                 self._interface_data[result["name"]] = result
             elif self.regex:
@@ -753,6 +767,17 @@ class InterfaceRunningContext(BooleanContext):
     ),
 )
 @click.option(
+    "override_values",
+    "--value-override",
+    multiple=True,
+    help=(
+        "Override a value read from the RouterOS device. "
+        "Format of the value must be compatible with RouterOS values. "
+        "Example: Override/Set the speed value for bridges or tunnels: "
+        "--value-override speed:10Gbps"
+    )
+)
+@click.option(
     "warning_values",
     "--value-warning",
     multiple=True,
@@ -775,7 +800,9 @@ class InterfaceRunningContext(BooleanContext):
     )
 )
 @click.pass_context
-def interface(ctx, names, regex, single, ignore_disabled, cookie_filename, warning_values, critical_values):
+def interface(
+    ctx, names, regex, single, ignore_disabled, cookie_filename, warning_values, critical_values, override_values
+):
     """Check the state and the stats of interfaces"""
     check = nagiosplugin.Check()
     resource = InterfaceResource(
@@ -788,6 +815,7 @@ def interface(ctx, names, regex, single, ignore_disabled, cookie_filename, warni
         cookie_filename=cookie_filename,
         warning_values=warning_values,
         critical_values=critical_values,
+        override_values=override_values,
     )
 
     check.add(resource)

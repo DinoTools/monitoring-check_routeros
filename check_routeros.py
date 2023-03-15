@@ -819,6 +819,12 @@ def interface(
     )
 
     check.add(resource)
+    check.results.add(
+        nagiosplugin.Result(
+            nagiosplugin.state.Ok,
+            "All interfaces UP"
+        )
+    )
 
     if single and len(resource.interface_names) != 1:
         check.results.add(

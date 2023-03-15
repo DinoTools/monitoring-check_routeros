@@ -219,9 +219,10 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                 continue
 
             value = result[metric_value_name]
-            if metric_value["type"] is not None:
+            metric_value_type = metric_value.get("type")
+            if callable(metric_value_type):
                 try:
-                    value = metric_value["type"](value)
+                    value = metric_value_type(value)
                 except ValueError as e:
                     logger.warning(f"Error parsing value with name {metric_value_name}", exc_info=True)
                     raise e

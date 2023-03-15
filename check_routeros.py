@@ -429,6 +429,7 @@ class InterfaceResource(RouterOSCheckResource):
             # Later values depend on the speed
             {
                 "name": "speed",
+                "missing_ok": True,
                 "dst_value_name": "speed-byte",
                 "type": self.parse_routeros_speed,
                 "factor": 1 / 8,
@@ -436,6 +437,7 @@ class InterfaceResource(RouterOSCheckResource):
             },
             {
                 "name": "speed",
+                "missing_ok": True,
                 "type": self.parse_routeros_speed,
                 "min": 0,
             },

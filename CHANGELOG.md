@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.7.0 - 2023-03-16
+------------------
+
+- Split single file check into python package and publish on PyPI
+
 0.6.0 - 2023-03-16
 ------------------
 

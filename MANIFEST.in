@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+
+include CHANGELOG.md
+include CHANGELOG.md.license
+include LICENSE.md
+include README.md
+include README.md.license
+include mkdocs.yml
+graft docs
+prune docs/build
+graft tests
+
+global-exclude __pycache__
+global-exclude *.py[co]

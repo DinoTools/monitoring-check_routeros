@@ -46,7 +46,7 @@ If you want to use pip we recommend to use as virtualenv to install the dependen
 pip install -r requirements.txt
 ```
 
-Copy the script ```check_routeros.py``` into your plugin directory.
+Copy the script ```check_routeros.py``` and the directory ```routeros_check``` into your plugin directory.
 
 ### Debian/Ubuntu
 
@@ -56,7 +56,7 @@ Install the required packages
 sudo apt-get install python3 python3-click python3-librouteros python3-nagiosplugin
 ```
 
-Copy the script ```check_routeros.py``` into your plugin directory.
+Copy the script ```check_routeros.py``` and the directory ```routeros_check``` into your plugin directory.
 
 Usage
 -----

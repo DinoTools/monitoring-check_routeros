@@ -30,7 +30,7 @@ requires-python = ">=3.6"
 Homepage = "https://github.com/DinoTools/monitoring-check_routeros"
 
 [project.scripts]
-check_routeros = "check_routeros.__main__:cli"
+check_routeros = "routeros_check.__main__:cli"
 
 [tool.setuptools.packages.find]
 include = ["routeros_check*"]

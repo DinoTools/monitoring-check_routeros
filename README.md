@@ -20,7 +20,18 @@ check_routeros - Monitoring MikroTik devices
   <a href="https://exchange.icinga.com/dinotools/check_routeros">
     <img alt="Icinga Exchange" src="https://img.shields.io/badge/Icinga-Exchange-success">
   </a>
-
+  <a href="https://pypi.org/project/routeros-check/">
+    <img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/routeros-check">
+  </a>
+  <a href="https://pypi.org/project/routeros-check/">
+    <img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/routeros-check">
+  </a>
+  <a href="https://pypi.org/project/routeros-check/">
+    <img alt="PyPI - Format" src="https://img.shields.io/pypi/format/routeros-check">
+  </a>
+  <a href="https://pypi.org/project/routeros-check/">
+    <img alt="PyPI - Status" src="https://img.shields.io/pypi/status/routeros-check">
+  </a>
 </p>
 
 This is a monitoring plugin for [Icinga](https://icinga.com/), [Nagios](https://www.nagios.org/) and other compatible monitoring solutions to check [MikroTik](https://mikrotik.com/) devices running RouterOS.
@@ -57,6 +68,19 @@ sudo apt-get install python3 python3-click python3-librouteros python3-nagiosplu
 ```
 
 Copy the script ```check_routeros.py``` and the directory ```routeros_check``` into your plugin directory.
+
+### From PyPI
+
+Install the package from PyPI.
+
+```shell
+pip install routeros-check
+```
+
+You should be able to run ```check_routeros``` after the package installation has been finished successfully.
+
+> **Note**
+> You have to update the command in the icinga CheckCommand example config.
 
 Usage
 -----

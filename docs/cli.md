@@ -1,9 +1,9 @@
 # Command Reference
 
 ::: mkdocs-click
-    :module: check_routeros
+    :module: routeros_check.cli
     :command: cli
-    :prog_name: check_routeros.py
+    :prog_name: check_routeros
     :depth: 4
     :style: table
     :list_subcommands: true

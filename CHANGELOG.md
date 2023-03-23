@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.7.1 - 2023-03-23
+------------------
+
+- Fix issues with the mkdocs pipeline
+- Fix issues with the new module name
+- Update docs and badges
+
 0.7.0 - 2023-03-16
 ------------------
 

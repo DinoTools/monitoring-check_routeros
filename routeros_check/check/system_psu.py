@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import click
 import nagiosplugin
@@ -24,23 +24,16 @@ class SystemPsuResource(RouterOSCheckResource):
 
         self._check = check
 
+        self.psu_names: Set[str] = set()
         self.psu_states: Dict[str, str] = {}
         self.psu_values: Dict[str, float] = {}
         self.warning_values = self._prepare_thresholds(warning_values)
         self.critical_values = self._prepare_thresholds(critical_values)
         self.no_psu_ok = no_psu_ok
 
-    @staticmethod
-    def _prepare_thresholds(thresholds: List[str]):
-        results = {}
-        for threshold in thresholds:
-            name, _, value = threshold.partition(":")
-            if value is None or value == "":
-                logger.warning(f"Unable to parse threshold for {name}")
-            results[name] = value
-        return results
+        self._fetch_data()
 
-    def probe(self):
+    def _fetch_data(self):
         logger.info("Fetching data ...")
         call = self.api.path(
             "/system/health"
@@ -62,6 +55,8 @@ class SystemPsuResource(RouterOSCheckResource):
             if not m:
                 continue
 
+            self.psu_names.add(m.group("name"))
+
             if m.group("type") in ("current", "voltage"):
                 self.psu_values[api_result_item["name"]] = float(api_result_item["value"])
 
@@ -76,6 +71,17 @@ class SystemPsuResource(RouterOSCheckResource):
                 )
             )
 
+    @staticmethod
+    def _prepare_thresholds(thresholds: List[str]):
+        results = {}
+        for threshold in thresholds:
+            name, _, value = threshold.partition(":")
+            if value is None or value == "":
+                logger.warning(f"Unable to parse threshold for {name}")
+            results[name] = value
+        return results
+
+    def probe(self):
         for name, value in self.psu_values.items():
             self._check.add(nagiosplugin.ScalarContext(
                 name=name,
@@ -131,9 +137,16 @@ class SystemPsuResource(RouterOSCheckResource):
     default=False,
     help="The check will be unknown if not at least one psu stat or value is available. Set this to ignore this."
 )
+@click.option(
+    "expected_psu_names",
+    "--expect-psu",
+    multiple=True,
+    default=[],
+    help="Name of the PSU to expect at least one value or state. Can be specified multiple times."
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_psu(ctx, warning_values, critical_values, no_psu_ok):
+def system_psu(ctx, warning_values, critical_values, no_psu_ok, expected_psu_names):
     """Check the power supply units (PSU)"""
     check = nagiosplugin.Check()
 
@@ -149,8 +162,21 @@ def system_psu(ctx, warning_values, critical_values, no_psu_ok):
     check.results.add(
         nagiosplugin.Result(
             nagiosplugin.state.Ok,
-            hint="Looks like all PSU work like expected"
+            hint=f"Looks like all PSU work like expected: {', '.join(psu_resource.psu_names)}"
         )
     )
+    if len(expected_psu_names) > 0:
+        missing_psu_names = []
+        for psu_name in expected_psu_names:
+            if psu_name not in psu_resource.psu_names:
+                missing_psu_names.append(psu_name)
+
+        if len(missing_psu_names) > 0:
+            check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Warn,
+                    hint=f"Expected PSU(s) not found: {', '.join(missing_psu_names)}"
+                )
+            )
 
     check.main(verbose=ctx.obj["verbose"])

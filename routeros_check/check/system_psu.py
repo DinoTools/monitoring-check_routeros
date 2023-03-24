@@ -9,7 +9,7 @@ import nagiosplugin
 
 from ..cli import cli
 from ..context import BooleanContext
-from ..helper import logger
+from ..helper import logger, RouterOSVersion
 from ..resource import RouterOSCheckResource
 
 
@@ -37,26 +37,32 @@ class SystemPsuResource(RouterOSCheckResource):
         return results
 
     def probe(self):
-        api = self._connect_api()
-
         logger.info("Fetching data ...")
-        call = api.path(
+        call = self.api.path(
             "/system/health"
         )
-        results = tuple(call)
-        result = results[0]
+        api_results = tuple(call)
+        if self.routeros_version < RouterOSVersion("7"):
+            api_result_items = []
+            for name, value in api_results[0].items():
+                api_result_items.append({
+                    "name": name,
+                    "value": value,
+                })
+        else:
+            api_result_items = api_results
 
         regex_name = re.compile(r"(?P<name>psu\d+)-(?P<type>(state|current|voltage))")
-        for name, value in result.items():
-            m = regex_name.match(name)
+        for api_result_item in api_result_items:
+            m = regex_name.match(api_result_item["name"])
             if not m:
                 continue
 
             if m.group("type") in ("current", "voltage"):
-                self.psu_values[name] = float(value)
+                self.psu_values[api_result_item["name"]] = float(api_result_item["value"])
 
             if m.group("type") == "state":
-                self.psu_states[m.group("name")] = value
+                self.psu_states[m.group("name")] = api_result_item["value"]
 
         for name, value in self.psu_values.items():
             self._check.add(nagiosplugin.ScalarContext(

@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from pprint import pformat
 import re
 from typing import Dict, List, Set
 
@@ -9,7 +8,7 @@ import click
 import nagiosplugin
 
 from ..cli import cli
-from ..helper import logger
+from ..helper import logger, RouterOSVersion
 from ..resource import RouterOSCheckResource
 
 
@@ -51,29 +50,29 @@ class SystemTemperatureResource(RouterOSCheckResource):
         call = self.api.path(
             "/system/health"
         )
-        results = tuple(call)
-        result = results[0]
-        logger.debug(f"Extracted values {pformat(result)}")
+        api_result_items = tuple(call)
+        if self.routeros_version < RouterOSVersion("7"):
+            api_result_items = self._convert_v6_list_to_v7(api_result_items)
 
         regex_name = re.compile(r".*temperature.*")
-        for name, value in result.items():
-            m = regex_name.match(name)
+        for item in api_result_items:
+            m = regex_name.match(item["name"])
             if not m:
                 continue
 
             if self.use_regex:
                 for regex, threshold in self.warning_regex_values.items():
-                    if regex.match(name):
-                        self.warning_values[name] = threshold
+                    if regex.match(item["name"]):
+                        self.warning_values[item["name"]] = threshold
                         break
 
                 for regex, threshold in self.critical_regex_values.items():
-                    if regex.match(name):
-                        self.critical_values[name] = threshold
+                    if regex.match(item["name"]):
+                        self.critical_values[item["name"]] = threshold
                         break
 
-            self.names.add(name)
-            self.values[name] = float(value)
+            self.names.add(item["name"])
+            self.values[item["name"]] = float(item["value"])
 
     def probe(self):
         for name, value in self.values.items():

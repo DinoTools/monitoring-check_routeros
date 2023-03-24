@@ -105,6 +105,16 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         )
         return api
 
+    @staticmethod
+    def _convert_v6_list_to_v7(api_results) -> List[Dict[str, Any]]:
+        result_items = []
+        for name, value in api_results[0].items():
+            result_items.append({
+                "name": name,
+                "value": value,
+            })
+        return result_items
+
     def _get_routeros_version(self) -> RouterOSVersion:
         if self._api is None:
             raise RuntimeWarning("Not connected to RouterOS device")

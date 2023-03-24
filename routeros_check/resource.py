@@ -9,7 +9,7 @@ import librouteros
 import librouteros.query
 import nagiosplugin
 
-from .helper import logger
+from .helper import logger, RouterOSVersion
 from .exeption import MissingValue
 
 
@@ -22,6 +22,8 @@ class RouterOSCheckResource(nagiosplugin.Resource):
     def __init__(self, cmd_options: Dict[str, Any]):
         self._cmd_options = cmd_options
         self._routeros_metric_values: List[Dict[str, Any]] = []
+        self._routeros_version: Optional[RouterOSVersion] = None
+        self._api: Optional[librouteros.api.Api] = None
         self.current_time = datetime.now()
 
     @staticmethod
@@ -85,6 +87,31 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             **extra_kwargs
         )
         return api
+
+    def _get_routeros_version(self) -> RouterOSVersion:
+        if self._api is None:
+            raise RuntimeWarning("Not connected to RouterOS device")
+
+        call = self._api.path(
+            "/system/resource"
+        )
+        results = tuple(call)
+        result: Dict[str, str] = results[0]
+        # version: 7.8 (stable)
+        version_string = result["version"].partition(" ")[0]
+        return RouterOSVersion(version_string)
+
+    def connect_api(self) -> librouteros.api.Api:
+        if self._api is None:
+            self._api = self._connect_api()
+
+        if self._routeros_version is None:
+            if self._cmd_options["routeros_version"].strip().lower() == "auto":
+                self._routeros_version = self._get_routeros_version()
+            else:
+                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
+
+        return self._api
 
     @classmethod
     def parse_routeros_datetime(cls, datetime_string: str) -> datetime:

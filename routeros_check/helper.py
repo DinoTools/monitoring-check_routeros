@@ -10,6 +10,81 @@ from typing import List, Optional
 logger = logging.getLogger('nagiosplugin')
 
 
+REGEX_VERSION_PATTERN = r"""
+    (?P<release>[0-9]+(?:\.[0-9]+)*)
+    (?P<pre>
+        [-_\.]?
+        (?P<pre_type>(a|b|c|rc|alpha|beta|pre|preview))
+        [-_\.]?
+        (?P<pre_serial>[0-9]+)?
+    )?
+"""
+
+
+class RouterOSVersion:
+    def __init__(self, version_string: str):
+        regex = re.compile(r"^\s*" + REGEX_VERSION_PATTERN + r"\s*$", re.VERBOSE | re.IGNORECASE)
+        m = regex.match(version_string)
+        if not m:
+            raise ValueError(f"Unable to parse version string: '{version_string}'")
+
+        self.release = tuple([int(v) for v in m.group("release").split(".")])
+        # At the moment we don't handle the pre releases like alpha, beta or rc
+        # We should try to work with major and minor version
+
+        self._cmp_attribute_names = ("major", "minor", "patch")
+
+    def __eq__(self, other):
+        for attr_name in self._cmp_attribute_names:
+            if getattr(self, attr_name) != getattr(other, attr_name):
+                return False
+
+        return True
+
+    def __ge__(self, other):
+        return self > other or self == other
+
+    def __gt__(self, other):
+        for attr_name in self._cmp_attribute_names:
+            if getattr(self, attr_name) > getattr(other, attr_name):
+                return True
+            if getattr(self, attr_name) < getattr(other, attr_name):
+                return False
+
+        return False
+
+    def __le__(self, other):
+        return self < other or self == other
+
+    def __lt__(self, other):
+        for attr_name in self._cmp_attribute_names:
+            if getattr(self, attr_name) < getattr(other, attr_name):
+                return True
+            if getattr(self, attr_name) > getattr(other, attr_name):
+                return False
+
+        return False
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}('{self}')"
+
+    def __str__(self):
+        return f"{'.'.join([str(v) for v in self.release])}"
+
+    @property
+    def major(self) -> int:
+
+        return self.release[0] if len(self.release) >= 1 else 0
+
+    @property
+    def minor(self) -> int:
+        return self.release[1] if len(self.release) >= 2 else 0
+
+    @property
+    def patch(self) -> int:
+        return self.release[2] if len(self.release) >= 3 else 0
+
+
 def escape_filename(value):
     value = re.sub(r"[^\w\s-]", "_", value).strip().lower()
     return re.sub(r"[-\s]+", '-', value)

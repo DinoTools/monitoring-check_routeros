@@ -16,7 +16,10 @@ from ..resource import RouterOSCheckResource
 class SystemPsuResource(RouterOSCheckResource):
     name = "PSU"
 
-    def __init__(self, cmd_options, check: nagiosplugin.Check, warning_values: List[str], critical_values: List[str]):
+    def __init__(
+        self, cmd_options, check: nagiosplugin.Check, warning_values: List[str], critical_values: List[str],
+        no_psu_ok: bool,
+    ):
         super().__init__(cmd_options=cmd_options)
 
         self._check = check
@@ -25,6 +28,7 @@ class SystemPsuResource(RouterOSCheckResource):
         self.psu_values: Dict[str, float] = {}
         self.warning_values = self._prepare_thresholds(warning_values)
         self.critical_values = self._prepare_thresholds(critical_values)
+        self.no_psu_ok = no_psu_ok
 
     @staticmethod
     def _prepare_thresholds(thresholds: List[str]):
@@ -63,6 +67,14 @@ class SystemPsuResource(RouterOSCheckResource):
 
             if m.group("type") == "state":
                 self.psu_states[m.group("name")] = api_result_item["value"]
+
+        if not self.no_psu_ok and len(self.psu_values) == 0 and len(self.psu_states) == 0:
+            self._check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Unknown,
+                    hint="No PSU values and stats found"
+                )
+            )
 
         for name, value in self.psu_values.items():
             self._check.add(nagiosplugin.ScalarContext(
@@ -113,9 +125,15 @@ class SystemPsuResource(RouterOSCheckResource):
         "Can be specified multiple times"
     )
 )
+@click.option(
+    "--no-psu-ok",
+    is_flag=True,
+    default=False,
+    help="The check will be unknown if not at least one psu stat or value is available. Set this to ignore this."
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_psu(ctx, warning_values, critical_values):
+def system_psu(ctx, warning_values, critical_values, no_psu_ok):
     """Check the power supply units (PSU)"""
     check = nagiosplugin.Check()
 
@@ -124,6 +142,7 @@ def system_psu(ctx, warning_values, critical_values):
         check=check,
         warning_values=warning_values,
         critical_values=critical_values,
+        no_psu_ok=no_psu_ok,
     )
     check.add(psu_resource)
 

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import re
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import click
 import nagiosplugin
@@ -27,6 +27,7 @@ class SystemFanResource(RouterOSCheckResource):
 
         self._check = check
 
+        self.fan_names: Set[str] = set()
         self.fan_values: Dict[str, int] = {}
         self.use_regex: bool = use_regex
 
@@ -42,11 +43,11 @@ class SystemFanResource(RouterOSCheckResource):
             self.warning_values = self.prepare_thresholds(warning_values)
             self.critical_values = self.prepare_thresholds(critical_values)
 
-    def probe(self):
-        api = self._connect_api()
+        self._fetch_data()
 
+    def _fetch_data(self):
         logger.info("Fetching data ...")
-        call = api.path(
+        call = self.api.path(
             "/system/health"
         )
         results = tuple(call)
@@ -72,6 +73,9 @@ class SystemFanResource(RouterOSCheckResource):
             if m.group("type") in ("speed",):
                 self.fan_values[name] = int(value)
 
+            self.fan_names.add(m.group("name"))
+
+    def probe(self):
         for name, value in self.fan_values.items():
             self._check.add(nagiosplugin.ScalarContext(
                 name=name,
@@ -114,9 +118,22 @@ class SystemFanResource(RouterOSCheckResource):
     is_flag=True,
     help="Treat values from --value-warning and --value-critical as regex to find all matching values"
 )
+@click.option(
+    "--no-fan-ok",
+    is_flag=True,
+    default=False,
+    help="The check will be unknown if no fan is available. Provide this option to ignore this."
+)
+@click.option(
+    "expected_names",
+    "--expect-fan",
+    multiple=True,
+    default=[],
+    help="Name of the fan to expect. Can be specified multiple times."
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_fan(ctx, warning_values, critical_values, use_regex):
+def system_fan(ctx, warning_values, critical_values, use_regex, no_fan_ok, expected_names):
     check = nagiosplugin.Check()
 
     fan_resource = SystemFanResource(
@@ -131,8 +148,29 @@ def system_fan(ctx, warning_values, critical_values, use_regex):
     check.results.add(
         nagiosplugin.Result(
             nagiosplugin.state.Ok,
-            hint="Looks like all fans work as expected"
+            hint=f"Looks like all fans work as expected: {', '.join(sorted(fan_resource.fan_names))}"
         )
     )
+    if len(fan_resource.fan_names) == 0 and not no_fan_ok:
+        check.results.add(
+            nagiosplugin.Result(
+                nagiosplugin.state.Unknown,
+                hint="No FANs found"
+            )
+        )
+
+    if len(expected_names) > 0:
+        missing_names = []
+        for name in expected_names:
+            if name not in fan_resource.fan_names:
+                missing_names.append(name)
+
+        if len(missing_names) > 0:
+            check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Warn,
+                    hint=f"Expected FAN(s) not found: {', '.join(missing_names)}"
+                )
+            )
 
     check.main(verbose=ctx.obj["verbose"])

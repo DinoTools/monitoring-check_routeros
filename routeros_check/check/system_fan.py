@@ -8,7 +8,7 @@ import click
 import nagiosplugin
 
 from ..cli import cli
-from ..helper import logger
+from ..helper import logger, RouterOSVersion
 from ..resource import RouterOSCheckResource
 
 
@@ -50,28 +50,36 @@ class SystemFanResource(RouterOSCheckResource):
         call = self.api.path(
             "/system/health"
         )
-        results = tuple(call)
-        result = results[0]
+        api_results = tuple(call)
+        if self.routeros_version < RouterOSVersion("7"):
+            api_result_items = []
+            for name, value in api_results[0].items():
+                api_result_items.append({
+                    "name": name,
+                    "value": value,
+                })
+        else:
+            api_result_items = api_results
 
         regex_name = re.compile(r"(?P<name>fan\d+)-(?P<type>(speed))")
-        for name, value in result.items():
-            m = regex_name.match(name)
+        for item in api_result_items:
+            m = regex_name.match(item["name"])
             if not m:
                 continue
 
             if self.use_regex:
                 for regex, threshold in self.warning_regex_values.items():
-                    if regex.match(name):
-                        self.warning_values[name] = threshold
+                    if regex.match(item["name"]):
+                        self.warning_values[item["name"]] = threshold
                         break
 
                 for regex, threshold in self.critical_regex_values.items():
-                    if regex.match(name):
-                        self.critical_values[name] = threshold
+                    if regex.match(item["name"]):
+                        self.critical_values[item["name"]] = threshold
                         break
 
             if m.group("type") in ("speed",):
-                self.fan_values[name] = int(value)
+                self.fan_values[item["name"]] = int(item["value"])
 
             self.fan_names.add(m.group("name"))
 

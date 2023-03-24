@@ -3,7 +3,7 @@
 
 from pprint import pformat
 import re
-from typing import Dict, List
+from typing import Dict, List, Set
 
 import click
 import nagiosplugin
@@ -28,6 +28,7 @@ class SystemTemperatureResource(RouterOSCheckResource):
 
         self._check = check
 
+        self.names: Set[str] = set()
         self.values: Dict[str, float] = {}
         self.use_regex: bool = use_regex
 
@@ -43,11 +44,11 @@ class SystemTemperatureResource(RouterOSCheckResource):
             self.warning_values = self.prepare_thresholds(warning_values)
             self.critical_values = self.prepare_thresholds(critical_values)
 
-    def probe(self):
-        api = self._connect_api()
+        self._fetch_data()
 
+    def _fetch_data(self):
         logger.info("Fetching data ...")
-        call = api.path(
+        call = self.api.path(
             "/system/health"
         )
         results = tuple(call)
@@ -71,8 +72,10 @@ class SystemTemperatureResource(RouterOSCheckResource):
                         self.critical_values[name] = threshold
                         break
 
+            self.names.add(name)
             self.values[name] = float(value)
 
+    def probe(self):
         for name, value in self.values.items():
             self._check.add(nagiosplugin.ScalarContext(
                 name=name,
@@ -119,9 +122,22 @@ class SystemTemperatureResource(RouterOSCheckResource):
     is_flag=True,
     help="Treat values from --value-warning and --value-critical as regex to find all matching values"
 )
+@click.option(
+    "--no-temperature-ok",
+    is_flag=True,
+    default=False,
+    help="The check will be unknown if no temperature is available. Provide this option to ignore this."
+)
+@click.option(
+    "expected_names",
+    "--expect-temperature",
+    multiple=True,
+    default=[],
+    help="Name of the temperature to expect. Can be specified multiple times. Example: board-temperature1"
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_temperature(ctx, warning_values, critical_values, use_regex):
+def system_temperature(ctx, warning_values, critical_values, use_regex, no_temperature_ok, expected_names):
     """This command reads the information from /system/health and extracts all values containing the
     word temperature in its name. Like 'board-temperature', 'board-temperature1', 'cpu-temperature', ...
 
@@ -141,8 +157,29 @@ def system_temperature(ctx, warning_values, critical_values, use_regex):
     check.results.add(
         nagiosplugin.Result(
             nagiosplugin.state.Ok,
-            hint="Looks like all temperatures are OK"
+            hint=f"Looks like all temperatures are OK:  {', '.join(sorted(temperature_resource.names))}"
         )
     )
+    if len(temperature_resource.names) == 0 and not no_temperature_ok:
+        check.results.add(
+            nagiosplugin.Result(
+                nagiosplugin.state.Unknown,
+                hint="No temperatures found"
+            )
+        )
+
+    if len(expected_names) > 0:
+        missing_names = []
+        for name in expected_names:
+            if name not in temperature_resource.names:
+                missing_names.append(name)
+
+        if len(missing_names) > 0:
+            check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Warn,
+                    hint=f"Expected temperature(s) not found: {', '.join(missing_names)}"
+                )
+            )
 
     check.main(verbose=ctx.obj["verbose"])

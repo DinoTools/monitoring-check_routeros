@@ -26,6 +26,23 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         self._api: Optional[librouteros.api.Api] = None
         self.current_time = datetime.now()
 
+    @property
+    def api(self):
+        if self._api is None:
+            self._api = self.connect_api()
+
+        return self._api
+
+    @property
+    def routeros_version(self):
+        if self._routeros_version is None:
+            if self._cmd_options["routeros_version"].strip().lower() == "auto":
+                self._routeros_version = self._get_routeros_version()
+            else:
+                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
+
+        return self._routeros_version
+
     @staticmethod
     def _calc_rate(
             cookie: nagiosplugin.Cookie,
@@ -104,12 +121,6 @@ class RouterOSCheckResource(nagiosplugin.Resource):
     def connect_api(self) -> librouteros.api.Api:
         if self._api is None:
             self._api = self._connect_api()
-
-        if self._routeros_version is None:
-            if self._cmd_options["routeros_version"].strip().lower() == "auto":
-                self._routeros_version = self._get_routeros_version()
-            else:
-                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
 
         return self._api
 

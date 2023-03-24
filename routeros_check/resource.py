@@ -106,7 +106,10 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             self._api = self._connect_api()
 
         if self._routeros_version is None:
-            self._routeros_version = self._get_routeros_version()
+            if self._cmd_options["routeros_version"].strip().lower() == "auto":
+                self._routeros_version = self._get_routeros_version()
+            else:
+                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
 
         return self._api
 

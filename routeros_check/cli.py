@@ -33,6 +33,17 @@ import nagiosplugin
     help="The password of the monitoring user",
 )
 @click.option(
+    "--routeros-version",
+    default="auto",
+    help=(
+        "Version of RouterOS running on the device. "
+        "The value 'auto' is special and if set the check will try to detect the version automatically. "
+        "The 'auto' option is recommended. "
+        "Examples: '6', '6.48.8', '7', '7.8', 'auto' "
+        "(Default: auto)"
+    )
+)
+@click.option(
     "--ssl/--no-ssl",
     "use_ssl",
     default=True,
@@ -60,7 +71,7 @@ import nagiosplugin
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
-def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str,
+def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str, routeros_version: str,
         use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str], ssl_force_no_certificate: bool,
         ssl_verify: bool, ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
@@ -69,6 +80,7 @@ def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, passw
     ctx.obj["port"] = port
     ctx.obj["username"] = username
     ctx.obj["password"] = password
+    ctx.obj["routeros_version"] = routeros_version
     ctx.obj["ssl"] = use_ssl
     ctx.obj["ssl_cafile"] = ssl_cafile
     ctx.obj["ssl_capath"] = ssl_capath

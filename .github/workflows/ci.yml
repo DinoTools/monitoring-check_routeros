@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: none
+# SPDX-License-Identifier: CC0-1.0
+
+name: Python CI Tests
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '*.rst'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '*.rst'
+
+jobs:
+  tests:
+    name: "Python ${{ matrix.name }} on ${{ matrix.os }}"
+    runs-on: "${{ matrix.os }}"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: '3.11', python: '3.11', os: ubuntu-latest, tox: py311}
+          - {name: '3.10', python: '3.10', os: ubuntu-latest, tox: py310}
+          - {name: '3.9', python: '3.9', os: ubuntu-latest, tox: py39}
+          - {name: '3.8', python: '3.8', os: ubuntu-latest, tox: py38}
+          - {name: '3.7', python: '3.7', os: ubuntu-latest, tox: py37}
+          - {name: 'PyPy 3.9', python: pypy3.9, os: ubuntu-latest, tox: pypy39}
+
+    steps:
+      - uses: "actions/checkout@v3"
+
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: ${{ matrix.python }}
+          cache: 'pip' # caching pip dependencies
+
+      - name: Install tox and any other packages
+        run: pip install tox
+
+      - name: "Run tox targets for ${{ matrix.python }}"
+        run: tox -e ${{ matrix.tox }}

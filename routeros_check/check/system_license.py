@@ -21,8 +21,6 @@ class SystemLicenseResource(RouterOSCheckResource):
             time_delta = self.parse_routeros_datetime(value) - datetime.now()
             return int(time_delta.total_seconds()) / 60 / 60 / 24
 
-        self.api = self._connect_api()
-
         logger.info("Fetching information ...")
         call = self.api.path(
             "/system/resource"
@@ -60,7 +58,7 @@ class SystemLicenseResource(RouterOSCheckResource):
             if "next-renewal-at" in result:
                 self.next_renewal_datetime = self.parse_routeros_datetime(result["next-renewal-at"])
 
-        return self.get_routeros_metrics(result)
+        return self.get_routeros_metric_item(result)
 
 
 class SystemLicenseRenewSummary(nagiosplugin.Summary):

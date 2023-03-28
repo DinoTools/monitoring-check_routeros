@@ -294,7 +294,7 @@ class InterfaceResource(RouterOSCheckResource):
                     name=escape_filename(self.interface_names[0])
                 )
                 with nagiosplugin.Cookie(cookie_filename) as cookie:
-                    routeros_metrics += self.get_routeros_metrics(data[self.interface_names[0]], cookie=cookie)
+                    routeros_metrics += self.get_routeros_metric_item(data[self.interface_names[0]], cookie=cookie)
                 self._add_contexts(name=self.interface_names[0], values=data[self.interface_names[0]])
         else:
             for name in self.interface_names:
@@ -302,7 +302,7 @@ class InterfaceResource(RouterOSCheckResource):
                     name=escape_filename(name)
                 )
                 with nagiosplugin.Cookie(cookie_filename) as cookie:
-                    routeros_metrics += self.get_routeros_metrics(data[name], name_prefix=f"{name} ", cookie=cookie)
+                    routeros_metrics += self.get_routeros_metric_item(data[name], name_prefix=f"{name} ", cookie=cookie)
                 self._add_contexts(name=name, values=data[name], metric_prefix="{name} ")
 
         return routeros_metrics

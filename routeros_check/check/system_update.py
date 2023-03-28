@@ -18,12 +18,15 @@ class SystemUpdateResource(RouterOSCheckResource):
         self,
         cmd_options,
         check: nagiosplugin.Check,
+        latest_version: Optional[str] = None,
     ):
         super().__init__(cmd_options=cmd_options)
 
         self._check = check
         self._installed_version = None
         self._latest_version = None
+        if latest_version:
+            self._latest_version = RouterOSVersion(latest_version)
 
     def probe(self):
         logger.info("Fetching data ...")
@@ -54,7 +57,8 @@ class SystemUpdateResource(RouterOSCheckResource):
             )
 
         latest_version = result.get("latest-version")
-        if latest_version:
+        print(latest_version, result)
+        if self._latest_version is None and latest_version:
             self._latest_version = RouterOSVersion(latest_version)
 
         if self._installed_version and self._latest_version:
@@ -110,15 +114,25 @@ class SystemUpdateSummary(nagiosplugin.Summary):
     multiple=True,
     help="Allowed update channel. Repeat to use multiple values."
 )
+@click.option(
+    "--latest-version",
+    "latest_version",
+    default=None,
+    help=(
+        "Set a version that should at least be installed. "
+        "Use this if the update server is not available or if you want check with your own update policy."
+    )
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_license(ctx, channels):
+def system_update(ctx, channels, latest_version):
     check = nagiosplugin.Check()
 
     check.add(
         SystemUpdateResource(
             cmd_options=ctx.obj,
             check=check,
+            latest_version=latest_version,
         ),
         SystemUpdateChannelContext(
             name="channel",

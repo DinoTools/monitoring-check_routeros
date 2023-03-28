@@ -6,8 +6,11 @@ name: Publish Python distributions to PyPI and TestPyPI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
     tags:
+      - 0.*
+      - 1.*
 
 jobs:
   build-n-publish:
@@ -15,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
+
+      - name: Get history and tags for SCM versioning to work
+        run: |
+          git fetch --prune --unshallow
+          git fetch --depth=1 origin +refs/tags/*:refs/tags/*
 
       - name: Set up Python 3.10
         uses: actions/setup-python@v3
@@ -31,6 +39,9 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Publish distribution to Test PyPI
+        if: >-
+          github.event_name == 'push' &&
+          github.ref == 'refs/heads/main'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -38,7 +49,9 @@ jobs:
           skip-existing: true
 
       - name: Publish distribution to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: >-
+          github.event_name == 'push' &&
+          startsWith(github.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}

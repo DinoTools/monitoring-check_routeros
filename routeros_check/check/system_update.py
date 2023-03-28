@@ -18,11 +18,13 @@ class SystemUpdateResource(RouterOSCheckResource):
         self,
         cmd_options,
         check: nagiosplugin.Check,
+        check_for_update: bool = False,
         latest_version: Optional[str] = None,
     ):
         super().__init__(cmd_options=cmd_options)
 
         self._check = check
+        self._check_for_update = check_for_update
         self._installed_version = None
         self._latest_version = None
         if latest_version:
@@ -30,6 +32,11 @@ class SystemUpdateResource(RouterOSCheckResource):
 
     def probe(self):
         logger.info("Fetching data ...")
+        if self._check_for_update:
+            self.api(
+                "/system/package/update/check-for-updates"
+            )
+
         call = self.api.path(
             "/system/package/update"
         )
@@ -57,7 +64,6 @@ class SystemUpdateResource(RouterOSCheckResource):
             )
 
         latest_version = result.get("latest-version")
-        print(latest_version, result)
         if self._latest_version is None and latest_version:
             self._latest_version = RouterOSVersion(latest_version)
 
@@ -123,15 +129,27 @@ class SystemUpdateSummary(nagiosplugin.Summary):
         "Use this if the update server is not available or if you want check with your own update policy."
     )
 )
+@click.option(
+    "--check-for-update",
+    "check_for_update",
+    is_flag=True,
+    default=False,
+    help=(
+        "Actively check for updates. "
+        "This will run the command /system/package/update/check-for-updates . "
+        "If you don't whant to use this feature you have to schedule a task to look for updates."
+    )
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_update(ctx, channels, latest_version):
+def system_update(ctx, channels, latest_version, check_for_update):
     check = nagiosplugin.Check()
 
     check.add(
         SystemUpdateResource(
             cmd_options=ctx.obj,
             check=check,
+            check_for_update=check_for_update,
             latest_version=latest_version,
         ),
         SystemUpdateChannelContext(

@@ -33,9 +33,13 @@ class SystemUpdateResource(RouterOSCheckResource):
     def probe(self):
         logger.info("Fetching data ...")
         if self._check_for_update:
-            self.api(
+            logger.debug("Run command to check for updates ...")
+            call = self.api(
                 "/system/package/update/check-for-updates"
             )
+            logger.debug("Waiting that update command finished")
+            # Wait until command has finished
+            tuple(call)
 
         call = self.api.path(
             "/system/package/update"
@@ -78,6 +82,15 @@ class SystemUpdateResource(RouterOSCheckResource):
                         )
                     )
                 )
+
+        status = result.get("status")
+        if isinstance(status, str) and "error" in status.lower():
+            self._check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.Critical,
+                    hint=f"Looks like there was an error: '{status}'"
+                )
+            )
 
         return self.get_routeros_metric_item(result)
 

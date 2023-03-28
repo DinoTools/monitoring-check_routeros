@@ -32,8 +32,9 @@ Homepage = "https://github.com/DinoTools/monitoring-check_routeros"
 [project.scripts]
 check_routeros = "routeros_check.__main__:cli"
 
-[tool.setuptools_scm]
-write_to = "routeros_check/_version.py"
-
 [tool.setuptools.packages.find]
 include = ["routeros_check*"]
+
+[tool.setuptools_scm]
+write_to = "routeros_check/_scm_version.py"
+local_scheme = "no-local-version"

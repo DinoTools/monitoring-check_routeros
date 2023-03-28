@@ -105,21 +105,22 @@ All commands require at least `api` and `read` permissions.
 The permissions documented in the table are additional permissions.
 
 | Subcommand             | Permissions | RouterOS | Description                                              |
-|------------------------|------------|----------|----------------------------------------------------------|
-| interface              | -          | 6, 7     | Check interfaces                                         |
-| interface.gre          | -          | 6        | Check GRE interfaces/tunnels                             |
-| interface.vrrp         | -          | 6        | Check the state of an VRRP interface                     |
-| routing.bgp.peers      | -          | 6        | Check if connection to BGP peers is established          |
-| routing.ospf.neighbors | -          | 6        | Check if ospf neigbhors are reachable                    |
-| system.cpu             | -          | 6, 7     | Check the cpu load                                       |
-| system.fan             | -          | 6, 7     | Check the fans                                           |
-| system.memory          | -          | 6, 7     | Check system memory                                      |
-| system.license         | -          | 6, 7     | Check the license level and deadline and renewal date    |
-| system.power           | -          | 6, 7     | Check the overall power consumption if available         |
-| system.psu             | -          | 6, 7     | Check the current, voltage and state of the power supply |
-| system.temperature     | -          | 6, 7     | Check the cpu, system, board and more temperatures.      |
-| system.uptime          | -          | 6, 7     | Check the uptime                                         |
-| tool.ping              | test       | 6, 7     | Run the ping command on the device                       |
+|------------------------|-------------|----------|----------------------------------------------------------|
+| interface              | -           | 6, 7     | Check interfaces                                         |
+| interface.gre          | -           | 6        | Check GRE interfaces/tunnels                             |
+| interface.vrrp         | -           | 6        | Check the state of an VRRP interface                     |
+| routing.bgp.peers      | -           | 6        | Check if connection to BGP peers is established          |
+| routing.ospf.neighbors | -           | 6        | Check if ospf neigbhors are reachable                    |
+| system.cpu             | -           | 6, 7     | Check the cpu load                                       |
+| system.fan             | -           | 6, 7     | Check the fans                                           |
+| system.memory          | -           | 6, 7     | Check system memory                                      |
+| system.license         | -           | 6, 7     | Check the license level and deadline and renewal date    |
+| system.power           | -           | 6, 7     | Check the overall power consumption if available         |
+| system.psu             | -           | 6, 7     | Check the current, voltage and state of the power supply |
+| system.temperature     | -           | 6, 7     | Check the cpu, system, board and more temperatures.      |
+| system.update          | -           | 6, 7     | Check for updates                                        |
+| system.uptime          | -           | 6, 7     | Check the uptime                                         |
+| tool.ping              | test        | 6, 7     | Run the ping command on the device                       |
 
 To get more information about the available subcommands/checks have a look at the [check_routeros Command Reference](https://dinotools.github.io/monitoring-check_routeros/cli/)
 

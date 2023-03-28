@@ -6,8 +6,11 @@ name: Publish Python distributions to PyPI and TestPyPI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
     tags:
+      - 0.*
+      - 1.*
 
 jobs:
   build-n-publish:

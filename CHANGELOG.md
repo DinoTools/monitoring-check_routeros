@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.8.0 - 2023-03-28
+------------------
+
+- Add initial support for RouterOS v7
+- Add auto detection of RouterOS version
+- Add checks
+  - system.update
+
 0.7.2 - 2023-03-23
 ------------------
 

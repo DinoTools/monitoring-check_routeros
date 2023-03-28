@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: CC0-1.0
 
 [build-system]
-requires      = ["setuptools>=61.0.0", "wheel"]
+requires      = ["setuptools>=61.0.0", "wheel", "setuptools_scm[toml]>=7.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
+dynamic = ["version"]
 name = "routeros-check"
-version = "0.7.2"
 description = "Monitoring plugin for MikroTik devices for Icinga-Nagios-... "
 readme = "README.md"
 authors = [{ name = "DinoTools"}]
@@ -31,6 +31,9 @@ Homepage = "https://github.com/DinoTools/monitoring-check_routeros"
 
 [project.scripts]
 check_routeros = "routeros_check.__main__:cli"
+
+[tool.setuptools_scm]
+write_to = "routeros_check/_version.py"
 
 [tool.setuptools.packages.find]
 include = ["routeros_check*"]

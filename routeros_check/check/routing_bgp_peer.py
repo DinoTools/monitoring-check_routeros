@@ -80,7 +80,7 @@ class RoutingBGPPeerResource(RouterOSCheckResource):
                 return self.get_routeros_metrics(data[self.peer_names[0]])
         else:
             for name in self.peer_names:
-                routeros_metrics += self.get_routeros_metrics(data[name], name_prefix=f"{name} ")
+                routeros_metrics += self.get_routeros_metric_item(data[name], name_prefix=f"{name} ")
 
         return routeros_metrics
 

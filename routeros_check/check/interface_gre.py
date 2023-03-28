@@ -79,10 +79,10 @@ class InterfaceGREResource(RouterOSCheckResource):
 
         if self.single_interface:
             if len(self.interface_names) == 1:
-                return self.get_routeros_metrics(data[self.interface_names[0]])
+                return self.get_routeros_metric_item(data[self.interface_names[0]])
         else:
             for name in self.interface_names:
-                routeros_metrics += self.get_routeros_metrics(data[name], name_prefix=f"{name} ")
+                routeros_metrics += self.get_routeros_metric_item(data[name], name_prefix=f"{name} ")
 
         return routeros_metrics
 

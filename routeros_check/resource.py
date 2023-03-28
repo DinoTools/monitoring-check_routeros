@@ -3,7 +3,7 @@
 from datetime import datetime
 import re
 import ssl
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import librouteros
 import librouteros.query
@@ -25,6 +25,23 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         self._routeros_version: Optional[RouterOSVersion] = None
         self._api: Optional[librouteros.api.Api] = None
         self.current_time = datetime.now()
+
+    @property
+    def api(self):
+        if self._api is None:
+            self._api = self.connect_api()
+
+        return self._api
+
+    @property
+    def routeros_version(self):
+        if self._routeros_version is None:
+            if self._cmd_options["routeros_version"].strip().lower() == "auto":
+                self._routeros_version = self._get_routeros_version()
+            else:
+                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
+
+        return self._routeros_version
 
     @staticmethod
     def _calc_rate(
@@ -88,6 +105,16 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         )
         return api
 
+    @staticmethod
+    def _convert_v6_list_to_v7(api_results) -> List[Dict[str, Any]]:
+        result_items = []
+        for name, value in api_results[0].items():
+            result_items.append({
+                "name": name,
+                "value": value,
+            })
+        return result_items
+
     def _get_routeros_version(self) -> RouterOSVersion:
         if self._api is None:
             raise RuntimeWarning("Not connected to RouterOS device")
@@ -104,12 +131,6 @@ class RouterOSCheckResource(nagiosplugin.Resource):
     def connect_api(self) -> librouteros.api.Api:
         if self._api is None:
             self._api = self._connect_api()
-
-        if self._routeros_version is None:
-            if self._cmd_options["routeros_version"].strip().lower() == "auto":
-                self._routeros_version = self._get_routeros_version()
-            else:
-                self._routeros_version = RouterOSVersion(self._cmd_options["routeros_version"].strip())
 
         return self._api
 
@@ -218,7 +239,9 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             keys.append(librouteros.query.Key(metric_value["name"]))
         return keys
 
-    def get_routeros_metrics(self, result: Dict[str, Any], name_prefix="", cookie=None) -> List[nagiosplugin.Metric]:
+    def get_routeros_metric_item(
+        self, api_result: Dict[str, Any], name_prefix="", cookie=None
+    ) -> List[nagiosplugin.Metric]:
         metrics = []
 
         elapsed_seconds = None
@@ -232,10 +255,10 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         #
         for metric_value in self._routeros_metric_values:
             metric_value_name = metric_value["name"]
-            if metric_value.get("missing_ok", False) and metric_value_name not in result:
+            if metric_value.get("missing_ok", False) and metric_value_name not in api_result:
                 continue
 
-            value = result[metric_value_name]
+            value = api_result[metric_value_name]
             metric_value_type = metric_value.get("type")
             if callable(metric_value_type):
                 try:
@@ -253,7 +276,112 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
             dst_value_name = metric_value.get("dst_value_name")
             if isinstance(dst_value_name, str):
-                result[dst_value_name] = value
+                api_result[dst_value_name] = value
+
+            if not metric_value.get("no_metric"):
+                metrics.append(
+                    nagiosplugin.Metric(
+                        name=name_prefix + metric_value.get("dst", metric_value_name),
+                        value=value,
+                        **extra_kwargs,
+                    )
+                )
+
+            if metric_value.get("rate"):
+                try:
+                    rate_value = self._calc_rate(
+                        cookie=cookie,
+                        name=metric_value_name,
+                        cur_value=value,
+                        elapsed_seconds=elapsed_seconds,
+                        factor=metric_value.get("rate_factor", 1)
+                    )
+                    metrics.append(
+                        nagiosplugin.Metric(
+                            name=f"{name_prefix}{metric_value.get('dst', metric_value_name)}_rate",
+                            value=rate_value,
+                            uom=metric_value.get("rate_uom"),
+                            min=metric_value.get("rate_min"),
+                            max=metric_value.get("rate_max"),
+                        )
+                    )
+                except MissingValue as e:
+                    logger.debug(f"{e}", exc_info=e)
+
+        if cookie:
+            cookie["last_time"] = self.current_time.timetuple()
+
+        return metrics
+
+    def get_routeros_metrics(
+        self, api_results: Union[List[Dict[str, Any]], Dict[str, Any]], name_prefix="", cookie=None
+    ) -> List[nagiosplugin.Metric]:
+        def get_api_result_by_name(api_results, name):
+            for item in api_results:
+                if name == item["name"]:
+                    return item
+            return None
+
+        def new_api_result_item(api_results, item, ignore_if_exist=True):
+            tmp_item = get_api_result_by_name(api_results, item["name"])
+            if tmp_item is not None:
+                api_results.append(item)
+                return api_results
+
+            if ignore_if_exist:
+                return api_results
+
+            raise ValueError("Duplicated entry")
+
+        metrics = []
+
+        elapsed_seconds = None
+        if cookie:
+            last_time_tuple = cookie.get("last_time")
+            if isinstance(last_time_tuple, (list, tuple)):
+                last_time = datetime(*last_time_tuple[0:6])
+                delta_time = self.current_time - last_time
+                elapsed_seconds = delta_time.total_seconds()
+
+        if isinstance(api_results, dict):
+            from pprint import pprint
+            pprint(api_results)
+            api_results = self._convert_v6_list_to_v7(api_results=api_results)
+
+        #
+        for metric_value in self._routeros_metric_values:
+            metric_value_name = metric_value["name"]
+            api_result = get_api_result_by_name(api_results, metric_value_name)
+
+            if metric_value.get("missing_ok", False) and api_result is None:
+                continue
+
+            value = api_result["value"]
+            metric_value_type = metric_value.get("type")
+            if callable(metric_value_type):
+                try:
+                    value = metric_value_type(value)
+                except ValueError as e:
+                    logger.warning(f"Error parsing value with name {metric_value_name}", exc_info=True)
+                    raise e
+
+            value = value * metric_value.get("factor", 1)
+
+            extra_kwargs = {}
+            for n in ("min", "max", "uom"):
+                if n in metric_value:
+                    extra_kwargs[n] = metric_value[n]
+
+            dst_value_name = metric_value.get("dst_value_name")
+            if isinstance(dst_value_name, str):
+                api_results = new_api_result_item(
+                    api_results,
+                    {
+                        "name": dst_value_name,
+                        "value": value,
+                    },
+                    ignore_if_exist=True
+                )
 
             if not metric_value.get("no_metric"):
                 metrics.append(

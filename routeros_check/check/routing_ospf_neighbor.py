@@ -73,7 +73,7 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
 
         result = results[0]
 
-        return self.get_routeros_metrics(result)
+        return self.get_routeros_metric_item(result)
 
 
 class RoutingOSPFNeighborState(BooleanContext):

@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.8.1 - 2023-03-29
+------------------
+
+- Fix issues introduced in 0.8.0
+  - routing.bgp.peer
+  - routing.ospf.neighbor
+
 0.8.0 - 2023-03-28
 ------------------
 

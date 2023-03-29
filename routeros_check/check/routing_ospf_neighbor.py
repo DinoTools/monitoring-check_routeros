@@ -10,7 +10,7 @@ import nagiosplugin
 
 from ..cli import cli
 from ..context import BooleanContext
-from ..helper import logger
+from ..helper import logger, RouterOSVersion
 from ..resource import RouterOSCheckResource
 
 
@@ -33,14 +33,17 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
         self.state: Optional[str] = None
 
         self._routeros_metric_values = [
-            {"name": "priority", "type": int},
             {"name": "adjacency", "type": self.parse_routeros_time, "min": 0, "uom": "s"},
             {"name": "state", "type": None},
             {"name": "state-changes", "dst": "state_changes", "type": int},
-            {"name": "ls-retransmits", "dst": "ls_retransmits", "type": int},
-            {"name": "ls-requests", "dst": "ls_requests", "type": int},
-            {"name": "db-summaries", "dst": "db_summaries", "type": int},
         ]
+        if self.routeros_version < RouterOSVersion("7"):
+            self._routeros_metric_values += [
+                {"name": "priority", "type": int},
+                {"name": "ls-retransmits", "dst": "ls_retransmits", "type": int},
+                {"name": "ls-requests", "dst": "ls_requests", "type": int},
+                {"name": "db-summaries", "dst": "db_summaries", "type": int},
+            ]
 
     def probe(self):
         # ToDo: Only available in v7.x
@@ -48,11 +51,9 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
         key_instance = librouteros.query.Key("instance")
         key_router_id = librouteros.query.Key("router-id")
 
-        api = self._connect_api()
-
         logger.info("Fetching data ...")
 
-        call = api.path(
+        call = self.api.path(
             "/routing/ospf/neighbor"
         ).select(
             key_instance,

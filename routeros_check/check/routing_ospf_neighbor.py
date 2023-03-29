@@ -47,23 +47,37 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
 
     def probe(self):
         # ToDo: Only available in v7.x
-        # key_area = librouteros.query.Key("area")
+        key_area = librouteros.query.Key("area")
         key_instance = librouteros.query.Key("instance")
         key_router_id = librouteros.query.Key("router-id")
 
         logger.info("Fetching data ...")
 
+        select_keys = [
+            key_instance,
+            key_router_id,
+        ] + self.get_routeros_select_keys()
+
+        if self.routeros_version >= RouterOSVersion("7"):
+            select_keys.append(key_area)
+
+        where = [
+            key_instance == self.instance,
+            key_router_id == self.router_id,
+        ]
+
+        if self.area is not None:
+            if self.routeros_version >= RouterOSVersion("7"):
+                where.append(key_area == self.area)
+            else:
+                logger.warning("The area selector is only available on RouterOS 7.x")
+
         call = self.api.path(
             "/routing/ospf/neighbor"
         ).select(
-            key_instance,
-            # key_area,
-            key_router_id,
-            *self.get_routeros_select_keys()
+            *select_keys
         ).where(
-            key_instance == self.instance,
-            # key_area == self._area,
-            key_router_id == self.router_id
+            *where
         )
         results = tuple(call)
         if len(results) == 0:
@@ -80,14 +94,21 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
 class RoutingOSPFNeighborState(BooleanContext):
     def evaluate(self, metric, resource: RoutingOSPFNeighborResource):
         if metric.value is None:
+            if resource.area is None:
+                hint = f"Neighbor for instance '{resource.instance}' and router-id '{resource.router_id}' not found"
+            else:
+                hint = (
+                    f"Neighbor for area '{resource.area}', instance '{resource.instance}' and "
+                    f"router-id '{resource.router_id}' not found"
+                )
             return nagiosplugin.Result(
                 state=nagiosplugin.state.Critical,
-                hint=f"Neighbor for instance '{resource.instance}' and router-id '{resource.router_id}' not found"
+                hint=hint
             )
         elif metric.value in ("Down",):
             return self.result_cls(
                 state=nagiosplugin.state.Critical,
-                hint="Linkt to neighbor down"
+                hint="Link to neighbor down"
             )
         elif metric.value in ("Full",):
             return self.result_cls(
@@ -103,6 +124,10 @@ class RoutingOSPFNeighborState(BooleanContext):
 
 @cli.command("routing.ospf.neighbors")
 @click.option(
+    "--area",
+    help="The area the neighbor router belongs to (only supported on RouterOS v7.x",
+)
+@click.option(
     "--instance",
     required=True,
     help="The name of the OSPF instance",
@@ -113,10 +138,11 @@ class RoutingOSPFNeighborState(BooleanContext):
     help="The ID of the neighbor router",
 )
 @click.pass_context
-def routing_ospf_neighbors(ctx, instance, router_id):
+def routing_ospf_neighbors(ctx, area, instance, router_id):
     """Check the state of an OSPF neighbor"""
     resource = RoutingOSPFNeighborResource(
         cmd_options=ctx.obj,
+        area=area,
         instance=instance,
         router_id=router_id,
     )

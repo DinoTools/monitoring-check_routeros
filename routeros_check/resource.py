@@ -116,10 +116,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         return result_items
 
     def _get_routeros_version(self) -> RouterOSVersion:
-        if self._api is None:
-            raise RuntimeWarning("Not connected to RouterOS device")
-
-        call = self._api.path(
+        call = self.api.path(
             "/system/resource"
         )
         results = tuple(call)

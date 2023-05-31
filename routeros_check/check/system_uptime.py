@@ -31,7 +31,7 @@ class SystemUptimeResource(RouterOSCheckResource):
 
         yield nagiosplugin.Metric(
             name="uptime",
-            value=self.parse_routeros_time(result["uptime"]),
+            value=self.parse_routeros_time_duration(result["uptime"]),
             uom="s",
             min=0,
         )

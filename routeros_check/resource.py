@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
-from datetime import datetime
+from datetime import date, datetime, time
 import re
 import ssl
 from typing import Any, Dict, List, Optional, Union
@@ -14,8 +14,33 @@ from .exeption import MissingValue
 
 
 class RouterOSCheckResource(nagiosplugin.Resource):
+    month_mapping: Dict[str, int] = {
+        "jan": 1,
+        "feb": 2,
+        "mar": 3,
+        "apr": 4,
+        "may": 5,
+        "jun": 6,
+        "jul": 7,
+        "aug": 8,
+        "sep": 9,
+        "oct": 10,
+        "nov": 11,
+        "dec": 12,
+    }
+
     regex_datetime = re.compile(
         r"(?P<month>[a-z]{3})/(?P<day>\d+)/(?P<year>\d{4})\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)",
+        flags=re.IGNORECASE
+    )
+
+    regex_date = re.compile(
+        r"(?P<month>[a-z]{3})/(?P<day>\d+)/(?P<year>\d{4})",
+        flags=re.IGNORECASE
+    )
+
+    regex_time = re.compile(
+        r"(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)",
         flags=re.IGNORECASE
     )
 
@@ -132,29 +157,33 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         return self._api
 
     @classmethod
-    def parse_routeros_datetime(cls, datetime_string: str) -> datetime:
-        month_mapping: Dict[str, int] = {
-            "jan": 1,
-            "feb": 2,
-            "mar": 3,
-            "apr": 4,
-            "may": 5,
-            "jun": 6,
-            "jul": 7,
-            "aug": 8,
-            "sep": 9,
-            "oct": 10,
-            "nov": 11,
-            "dec": 12,
-        }
+    def parse_routeros_date(cls, date_string: str) -> date:
+        m = cls.regex_date.match(date_string)
+        if not m:
+            raise ValueError("Unable to parse datetime string")
 
+        return date(
+            year=int(m.group("year")),
+            month=cls.month_mapping[m.group("month").lower()],
+            day=int(m.group("day"))
+        )
+
+    @classmethod
+    def parse_routeros_date_time(cls, date_string: str, time_string: str) -> datetime:
+        parsed_date = cls.parse_routeros_date(date_string=date_string)
+        parsed_time = cls.parse_routeros_time(time_string=time_string)
+
+        return datetime.combine(parsed_date, parsed_time)
+
+    @classmethod
+    def parse_routeros_datetime(cls, datetime_string: str) -> datetime:
         m = cls.regex_datetime.match(datetime_string)
         if not m:
             raise ValueError("Unable to parse datetime string")
 
         return datetime(
             year=int(m.group("year")),
-            month=month_mapping[m.group("month").lower()],
+            month=cls.month_mapping[m.group("month").lower()],
             day=int(m.group("day")),
             hour=int(m.group("hour")),
             minute=int(m.group("minute")),
@@ -181,8 +210,20 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
         return int(m.group("value")) * factor
 
+    @classmethod
+    def parse_routeros_time(cls, time_string: str) -> time:
+        m = cls.regex_time.match(time_string)
+        if not m:
+            raise ValueError("Unable to parse datetime string")
+
+        return time(
+            hour=int(m.group("hour")),
+            minute=int(m.group("minute")),
+            second=int(m.group("second"))
+        )
+
     @staticmethod
-    def parse_routeros_time(time_string: str) -> int:
+    def parse_routeros_time_duration(time_string: str) -> int:
         factors = {
             "s": 1,
             "m": 60,

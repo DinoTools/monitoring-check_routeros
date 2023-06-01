@@ -16,6 +16,14 @@ class BooleanContext(nagiosplugin.Context):
         )
 
 
+class PerfdataScalarContext(nagiosplugin.ScalarContext):
+    def evaluate(self, metric, resource):
+        return self.result_cls(STATE_Ok, None, metric)
+
+    def performance(self, metric, resource):
+        return super(PerfdataScalarContext, self).performance(metric, resource)
+
+
 class SimplePositiveFloatContext(nagiosplugin.ScalarContext):
     def __init__(self, name, warning=None, critical=None, fmt_metric='{name} is {valueunit}',
                  result_cls=nagiosplugin.Result):

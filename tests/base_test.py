@@ -27,6 +27,7 @@ class TestBase:
 
     def test_parse_routeros_time(self):
         check = RouterOSCheckResource(cmd_options={})
+        assert check.parse_routeros_time_duration("13m53s460ms") == 2
         assert check.parse_routeros_time_duration("1s") == 1
         assert check.parse_routeros_time_duration("2m1s") == 1 + 2 * 60
         assert check.parse_routeros_time_duration("3h2m1s") == 1 + 2 * 60 + 3 * 60 * 60

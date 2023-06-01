@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
 from datetime import date, datetime, time
+from decimal import Decimal
 import re
 import ssl
 from typing import Any, Dict, List, Optional, Union
@@ -223,8 +224,10 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         )
 
     @staticmethod
-    def parse_routeros_time_duration(time_string: str) -> int:
-        factors = {
+    def parse_routeros_time_duration(time_string: str) -> float:
+        factors: Dict[str, Union[int, Decimal]] = {
+            "us": Decimal(1e-6),
+            "ms": Decimal(0.001),
             "s": 1,
             "m": 60,
             "h": 60 * 60,
@@ -232,14 +235,20 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             "w": 7 * 24 * 60 * 60,
         }
 
-        seconds = 0
+        value_is_negativ = time_string.startswith("-")
+
+        seconds = Decimal(0)
         for m in re.compile(r"(?P<value>\d+)(?P<type>[a-z]+)").finditer(time_string):
             factor = factors.get(m.group("type"))
             if factor is None:
                 raise ValueError(f"Unable to parse element '{m.group()}' of time string: '{time_string}'")
             seconds += int(m.group("value")) * factor
 
-        return seconds
+        seconds_float = float(round(seconds, 6))
+
+        if value_is_negativ:
+            return -seconds_float
+        return seconds_float
 
     @staticmethod
     def prepare_override_values(override_values: List[str]) -> Dict[str, str]:

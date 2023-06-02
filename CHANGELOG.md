@@ -1,6 +1,15 @@
 Changelog
 =========
 
+0.9.0 - 2023-06-02
+------------------
+
+- Add checks
+  - system.clock
+  - system.ntp.client
+- Update checks to support RouterOS 7.x
+  - routing.ospf.neighbor
+
 0.8.1 - 2023-03-29
 ------------------
 

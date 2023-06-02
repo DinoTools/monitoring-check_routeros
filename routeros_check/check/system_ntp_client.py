@@ -170,36 +170,50 @@ class SystemNtpClientSummary(nagiosplugin.Summary):
 @cli.command("system.ntp.client")
 @click.option(
     "--last-update-before-warning",
-    help="Warning threshold for time diff in seconds",
+    help=(
+        "The time from the NTP server should at least be synchronised in the last N seconds. "
+        "Default: 30 minutes = 1800 seconds "
+        "Note: This is only available on RouterOS 6.x"
+    ),
     type=float,
     default=60 * 30,
 )
 @click.option(
     "--last-update-before-critical",
-    help="Critical threshold for time diff in seconds",
+    help=(
+        "The time from the NTP server should at least be synchronised in the last N seconds. "
+        "Default: 60 minutes = 3600 seconds "
+        "Note: This is only available on RouterOS 6.x"
+    ),
     type=float,
     default=60 * 60,
 )
 @click.option(
     "--offset-warning",
-    help="Warning threshold for time diff in seconds",
+    help="Warning threshold for offset from the NTP server in seconds",
     type=float,
     default=10.0,
 )
 @click.option(
     "--offset-critical",
-    help="Critical threshold for time diff in seconds",
+    help="Critical threshold for offset from the NTP server in seconds",
     type=float,
     default=30.0,
 )
 @click.option(
     "--stratum-warning",
-    help="",
+    help=(
+        "Check the stratum and report warning state if it does not match. "
+        "Note: The stratum is only available on RouterOS 7.x"
+    ),
     type=int,
 )
 @click.option(
     "--stratum-critical",
-    help="",
+    help=(
+        "Check the stratum and report critical state if it does not match. "
+        "Note: The stratum is only available on RouterOS 7.x"
+    ),
     type=int,
 )
 @click.option(
@@ -218,7 +232,11 @@ class SystemNtpClientSummary(nagiosplugin.Summary):
 @nagiosplugin.guarded
 def system_clock(ctx, last_update_before_warning, last_update_before_critical, offset_warning, offset_critical,
                  stratum_warning, stratum_critical, expected_servers):
-    """This command reads the information from /system/ntp/client to extract the required information."""
+    """
+    This command reads the information from /system/ntp/client to extract the required information.
+
+    It checks if is the NTP client enabled, if the NTP server is reachable and if is the offset in the threshold.
+    """
     check = nagiosplugin.Check()
 
     resource = SystemNtpClientResource(

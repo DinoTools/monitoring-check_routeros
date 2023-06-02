@@ -42,7 +42,7 @@ class RoutingBGPPeerResource(RouterOSCheckResource):
             {"name": "state", "type": str},
             {"name": "updates-received", "dst": "updates_received", "type": int},
             {"name": "updates-sent", "dst": "updates_sent", "type": int},
-            {"name": "uptime", "type": self.parse_routeros_time, "min": 0, "uom": "s"},
+            {"name": "uptime", "type": self.parse_routeros_time_duration, "min": 0, "uom": "s"},
         ]
 
     def fetch_data(self) -> Dict[str, Dict]:

@@ -33,7 +33,7 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
         self.state: Optional[str] = None
 
         self._routeros_metric_values = [
-            {"name": "adjacency", "type": self.parse_routeros_time, "min": 0, "uom": "s"},
+            {"name": "adjacency", "type": self.parse_routeros_time_duration, "min": 0, "uom": "s"},
             {"name": "state", "type": None},
             {"name": "state-changes", "dst": "state_changes", "type": int},
         ]

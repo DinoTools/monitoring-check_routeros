@@ -5,6 +5,7 @@ import re
 from typing import Optional, Union
 
 import nagiosplugin
+from nagiosplugin.state import Ok as STATE_Ok, Warn as STATE_Warn, Critical as STATE_Critical
 
 
 class BooleanContext(nagiosplugin.Context):
@@ -13,6 +14,42 @@ class BooleanContext(nagiosplugin.Context):
             label=metric.name,
             value=1 if metric.value else 0
         )
+
+
+class PerfdataScalarContext(nagiosplugin.ScalarContext):
+    def evaluate(self, metric, resource):
+        return self.result_cls(STATE_Ok, None, metric)
+
+    def performance(self, metric, resource):
+        return super(PerfdataScalarContext, self).performance(metric, resource)
+
+
+class SimplePositiveFloatContext(nagiosplugin.ScalarContext):
+    def __init__(self, name, warning=None, critical=None, fmt_metric='{name} is {valueunit}',
+                 result_cls=nagiosplugin.Result):
+        super(SimplePositiveFloatContext, self).__init__(name, fmt_metric=fmt_metric, result_cls=result_cls)
+
+        self._warning = warning
+        self._critical = critical
+
+    def evaluate(self, metric, resource):
+        metric_value_abs = abs(metric.value)
+        if self._critical and metric_value_abs > self._critical:
+            return self.result_cls(
+                STATE_Critical,
+                None,
+                metric
+            )
+        if self._warning and metric_value_abs > self._warning:
+            return self.result_cls(
+                STATE_Warn,
+                None,
+                metric
+            )
+        return self.result_cls(STATE_Ok, None, metric)
+
+    def performance(self, metric, resource):
+        return super(SimplePositiveFloatContext, self).performance(metric, resource)
 
 
 class ScalarPercentContext(nagiosplugin.ScalarContext):

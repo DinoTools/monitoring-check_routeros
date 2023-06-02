@@ -111,9 +111,11 @@ The permissions documented in the table are additional permissions.
 | interface.vrrp         | -           | 6        | Check the state of an VRRP interface                     |
 | routing.bgp.peers      | -           | 6        | Check if connection to BGP peers is established          |
 | routing.ospf.neighbors | -           | 6        | Check if ospf neigbhors are reachable                    |
+| system.clock           | -           | 6, 7     | Check the time from RouterOS against local time          |
 | system.cpu             | -           | 6, 7     | Check the cpu load                                       |
 | system.fan             | -           | 6, 7     | Check the fans                                           |
 | system.memory          | -           | 6, 7     | Check system memory                                      |
+| system.ntp.client      | -           | 6, 7     | Check the ntp client, offset and stratum                 |
 | system.license         | -           | 6, 7     | Check the license level and deadline and renewal date    |
 | system.power           | -           | 6, 7     | Check the overall power consumption if available         |
 | system.psu             | -           | 6, 7     | Check the current, voltage and state of the power supply |

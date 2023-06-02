@@ -20,6 +20,7 @@ class SystemNtpClientResource(RouterOSCheckResource):
         self,
         cmd_options,
         check: nagiosplugin.Check,
+        expected_servers: Optional[List[str]] = None,
         last_update_before_warning: Optional[float] = None,
         last_update_before_critical: Optional[float] = None,
         offset_warning: Optional[float] = None,
@@ -31,6 +32,7 @@ class SystemNtpClientResource(RouterOSCheckResource):
 
         self._check = check
 
+        self._expected_servers = expected_servers
         self._offset_warning = offset_warning
         self._offset_critical = offset_critical
         self._last_update_before_warning = last_update_before_warning
@@ -61,6 +63,9 @@ class SystemNtpClientResource(RouterOSCheckResource):
                 )
             )
             return self.get_routeros_metric_item(result)
+
+        #: Current address of the server the devices gets its time from
+        current_server_address: Optional[str] = None
 
         if self.routeros_version < RouterOSVersion("7"):
             metric_values = [
@@ -96,6 +101,15 @@ class SystemNtpClientResource(RouterOSCheckResource):
                         critical=f"-{self._offset_critical}:{self._offset_critical}" if self._offset_critical else None,
                     ),
                 )
+                if self._expected_servers:
+                    current_server_address = result.get("last-update-from")
+                    if current_server_address is None:
+                        self._check.results.add(
+                            nagiosplugin.Result(
+                                nagiosplugin.state.Unknown,
+                                "Unable to get address of server (last-update-from)"
+                            )
+                        )
         else:
             self._routeros_metric_values += [
                 {"name": "freq-drift", "type": float},
@@ -116,6 +130,26 @@ class SystemNtpClientResource(RouterOSCheckResource):
                     warning=self._stratum_warning,
                     critical=self._stratum_critical,
                 ),
+            )
+            if self._expected_servers:
+                current_server_address = result.get("synced-server")
+                if current_server_address is None:
+                    self._check.results.add(
+                        nagiosplugin.Result(
+                            nagiosplugin.state.Unknown,
+                            "Unable to get address of server (synced-server)"
+                        )
+                    )
+
+        if current_server_address and current_server_address not in self._expected_servers:
+            self._check.results.add(
+                nagiosplugin.Result(
+                    nagiosplugin.state.Warn,
+                    (
+                        f"Server '{current_server_address}' not in list of expected servers: "
+                        f"{', '.join(self._expected_servers)}"
+                    )
+                )
             )
 
         return self.get_routeros_metric_item(result)
@@ -168,10 +202,22 @@ class SystemNtpClientSummary(nagiosplugin.Summary):
     help="",
     type=int,
 )
+@click.option(
+    "expected_servers",
+    "--expected-server",
+    multiple=True,
+    help=(
+        "Address of the ntp server we expect to get our time from. "
+        "This must be the IPv4/IPv6 address and not the FQDN. "
+        "It can be provided multiple times. "
+        "Example: --expected-server 10.0.0.1 --expected-server 192.168.1.1"
+    ),
+
+)
 @click.pass_context
 @nagiosplugin.guarded
 def system_clock(ctx, last_update_before_warning, last_update_before_critical, offset_warning, offset_critical,
-                 stratum_warning, stratum_critical):
+                 stratum_warning, stratum_critical, expected_servers):
     """This command reads the information from /system/ntp/client to extract the required information."""
     check = nagiosplugin.Check()
 
@@ -184,6 +230,7 @@ def system_clock(ctx, last_update_before_warning, last_update_before_critical, o
         offset_critical=offset_critical,
         stratum_warning=stratum_warning,
         stratum_critical=stratum_critical,
+        expected_servers=expected_servers,
     )
     check.add(
         resource,

@@ -113,6 +113,8 @@ class InterfaceResource(RouterOSCheckResource):
                 "name": "l2mtu",
                 "type": int,
                 "min": 0,
+                # CHR devices don't report l2mtu
+                "missing_ok": True,
             },
             {
                 "name": "link-downs",

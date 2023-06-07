@@ -1,6 +1,13 @@
 Changelog
 =========
 
+0.9.1 - 2023-06-07
+------------------
+
+- Fix checks
+  - interface - Fix l2mtu issue on CHR devices
+- Update icinga2 example config
+
 0.9.0 - 2023-06-02
 ------------------
 

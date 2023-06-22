@@ -114,7 +114,7 @@ class SystemNtpClientResource(RouterOSCheckResource):
             self._routeros_metric_values += [
                 {"name": "freq-drift", "type": float},
                 {"name": "synced-stratum", "dst": "stratum", "type": int},
-                {"name": "system-offset", "dst": "offset", "type": float, "uom": "s"},
+                {"name": "system-offset", "dst": "offset", "type": lambda v: float(v) / 1000, "uom": "s"},
             ]
             self._check.add(
                 PerfdataScalarContext(

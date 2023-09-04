@@ -1,11 +1,33 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
-from datetime import datetime
+from datetime import date, datetime
 
 from routeros_check.resource import RouterOSCheckResource
 
 
 class TestBase:
+    def test_parse_date(self):
+        check = RouterOSCheckResource(cmd_options={})
+        expected_date = date(year=2021, month=9, day=20)
+        assert check.parse_routeros_date("sep/20/2021") == expected_date
+        assert check.parse_routeros_date("2021-09-20") == expected_date
+
+        expected_date = date(year=2022, month=10, day=13)
+        assert check.parse_routeros_date("oct/13/2022") == expected_date
+        assert check.parse_routeros_date("2022-10-13") == expected_date
+
+        expected_date = date(year=2023, month=4, day=5)
+        assert check.parse_routeros_date("Apr/05/2023") == expected_date
+        assert check.parse_routeros_date("2023-04-05") == expected_date
+
+        expected_date = date(year=2023, month=5, day=7)
+        assert check.parse_routeros_date("May/07/2023") == expected_date
+        assert check.parse_routeros_date("2023-05-07") == expected_date
+
+        expected_date = date(year=2021, month=2, day=8)
+        assert check.parse_routeros_date("Feb/08/2021") == expected_date
+        assert check.parse_routeros_date("2021-02-08") == expected_date
+
     def test_parse_routeros_datetime(self):
         check = RouterOSCheckResource(cmd_options={})
 

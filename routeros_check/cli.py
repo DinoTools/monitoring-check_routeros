@@ -33,6 +33,12 @@ import nagiosplugin
     help="The password of the monitoring user",
 )
 @click.option(
+    "--connection-timeout",
+    default=10,
+    help="The connection timeout (Default: 10 seconds). Set to 0 to disable timeout, but be careful.",
+    type=int,
+)
+@click.option(
     "--routeros-version",
     default="auto",
     help=(
@@ -71,9 +77,9 @@ import nagiosplugin
 @click.option("--ssl-verify-hostname/--no-ssl-verify-hostname", default=True)
 @click.option("-v", "--verbose", count=True)
 @click.pass_context
-def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str, routeros_version: str,
-        use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str], ssl_force_no_certificate: bool,
-        ssl_verify: bool, ssl_verify_hostname: bool, verbose: int):
+def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, password: str, connection_timeout: int,
+        routeros_version: str, use_ssl: bool, ssl_cafile: Optional[str], ssl_capath: Optional[str],
+        ssl_force_no_certificate: bool, ssl_verify: bool, ssl_verify_hostname: bool, verbose: int):
     ctx.ensure_object(dict)
     ctx.obj["host"] = host
     ctx.obj["hostname"] = hostname
@@ -81,6 +87,8 @@ def cli(ctx, host: str, hostname: Optional[str], port: int, username: str, passw
     ctx.obj["username"] = username
     ctx.obj["password"] = password
     ctx.obj["routeros_version"] = routeros_version
+    # socket timeout = None will wait forever
+    ctx.obj["timeout"] = connection_timeout if connection_timeout == 0 else None
     ctx.obj["ssl"] = use_ssl
     ctx.obj["ssl_cafile"] = ssl_cafile
     ctx.obj["ssl_capath"] = ssl_capath

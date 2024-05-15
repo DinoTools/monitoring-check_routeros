@@ -164,15 +164,13 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
     @classmethod
     def parse_routeros_date(cls, date_string: str) -> date:
+        logger.debug(f"Parsing date string {date_string}")
         # Try iso date
         # Looks like they have switched date format in 7.11
-        m = cls.regex_date_iso.match(date_string)
-        if m:
-            return date(
-                year=int(m.group("year")),
-                month=int(m.group("month")),
-                day=int(m.group("day"))
-            )
+        try:
+            return date.fromisoformat(date_string)
+        except ValueError as e:
+            logger.debug(f"'{date_string}' is not in iso format: {str(e)}")
 
         # Try US date
         m = cls.regex_date.match(date_string)
@@ -194,6 +192,13 @@ class RouterOSCheckResource(nagiosplugin.Resource):
 
     @classmethod
     def parse_routeros_datetime(cls, datetime_string: str) -> datetime:
+        logger.debug(f"Parsing datetime string {datetime_string}")
+
+        try:
+            return datetime.fromisoformat(datetime_string)
+        except ValueError as e:
+            logger.debug(f"'{datetime_string}' is not in iso format: {str(e)}")
+
         m = cls.regex_datetime.match(datetime_string)
         if not m:
             raise ValueError("Unable to parse datetime string")

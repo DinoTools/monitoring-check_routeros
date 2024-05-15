@@ -47,6 +47,9 @@ class TestBase:
         parsed_datetime = check.parse_routeros_datetime("Feb/08/2021 12:48:33")
         assert parsed_datetime == datetime(year=2021, month=2, day=8, hour=12, minute=48, second=33)
 
+        parsed_datetime = check.parse_routeros_datetime("2024-05-09 11:23:55")
+        assert parsed_datetime == datetime(year=2024, month=5, day=9, hour=11, minute=23, second=55)
+
     def test_parse_routeros_time(self):
         check = RouterOSCheckResource(cmd_options={})
         assert check.parse_routeros_time_duration("-8ms15us") == -0.008015

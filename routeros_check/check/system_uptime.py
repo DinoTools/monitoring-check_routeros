@@ -8,7 +8,7 @@ import nagiosplugin
 from nagiosplugin.state import Ok as STATE_Ok, Warn as STATE_Warn, Critical as STATE_Critical
 
 from ..cli import cli
-from ..helper import logger
+from ..helper import humanize_time, logger
 from ..resource import RouterOSCheckResource
 
 
@@ -39,6 +39,9 @@ class SystemUptimeResource(RouterOSCheckResource):
 
 
 class UptimeSimpleScalarContext(nagiosplugin.ScalarContext):
+    def describe(self, metric):
+        return humanize_time(metric.value)
+
     def evaluate(self, metric, resource):
         if str(self.critical) != "" and metric.value in self.critical:
             return self.result_cls(

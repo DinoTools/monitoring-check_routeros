@@ -72,6 +72,28 @@ class TestRouterOSVersion:
         for item in cmp_items:
             assert not helper.RouterOSVersion(item[0]) < helper.RouterOSVersion(item[1])
 
+    def test_humanize_time_with_int(self):
+        assert helper.humanize_time(10) == "10s"
+        assert helper.humanize_time(75) == "1m 15s"
+        assert helper.humanize_time(3601) == "1h 0m 1s"
+        assert helper.humanize_time(
+            60 * 60 * 24 +
+            60 * 60 * 1 +
+            60 * 13 +
+            44
+        ) == "1d 1h 13m 44s"
+
+    def test_humanize_time_with_timedelta(self):
+        from datetime import timedelta
+        assert helper.humanize_time(
+            timedelta(
+                days=2,
+                hours=12,
+                minutes=33,
+                seconds=56
+            )
+        ) == "2d 12h 33m 56s"
+
     def test_parse_routeros_version(self):
         a = helper.RouterOSVersion("7.8")
         assert a.major == 7

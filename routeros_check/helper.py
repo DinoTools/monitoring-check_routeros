@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from datetime import timedelta
 import importlib
 import logging
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, Union
 
 logger = logging.getLogger('nagiosplugin')
 
@@ -88,6 +89,38 @@ class RouterOSVersion:
 def escape_filename(value):
     value = re.sub(r"[^\w\s-]", "_", value).strip().lower()
     return re.sub(r"[-\s]+", '-', value)
+
+
+def humanize_time(time: Union[float, int, timedelta]):
+    interval_mappings = {
+        1: {
+            "short": "s",
+        },
+        60: {
+            "short": "m",
+        },
+        3600: {
+            "short": "h",
+        },
+        86400: {
+            "short": "d",
+        }
+    }
+
+    if isinstance(time, timedelta):
+        time = time.total_seconds()
+
+    intervals: List[int] = sorted(interval_mappings.keys())
+    intervals.reverse()
+
+    results: List[str] = []
+    for interval in intervals:
+        v = int(time // interval)
+        if v or len(results):
+            results.append(f"{v}{interval_mappings[interval]['short']}")
+        time = time % interval
+
+    return " ".join(results)
 
 
 def load_modules(pkg_names: Optional[List] = None):

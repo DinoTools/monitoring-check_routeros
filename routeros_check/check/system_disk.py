@@ -10,7 +10,7 @@ import nagiosplugin
 
 from ..cli import cli
 from ..context import ScalarPercentContext
-from ..helper import logger, RouterOSVersion
+from ..helper import logger
 from ..resource import RouterOSCheckResource
 
 
@@ -38,11 +38,7 @@ class SystemDiskResource(RouterOSCheckResource):
             librouteros.query.Key("total-hdd-space"),
             *self.get_routeros_select_keys()
         )
-        if self.routeros_version < RouterOSVersion("7"):
-            api_result_items = tuple(call)
-            api_result_items = self._convert_v6_list_to_v7(api_result_items)
-        else:
-            api_result_items = tuple(call)
+        api_result_items = tuple(call)
 
         free_hdd_space = api_result_items[0]["free-hdd-space"]
         self.total_hdd_space = api_result_items[0]["total-hdd-space"]
@@ -100,9 +96,17 @@ class SystemDiskSummary(nagiosplugin.summary.Summary):
     required=True,
     help="Critical threshold in % or MB. Example (20% oder 20 = 20MB)",
 )
+@click.option(
+    "--bad-blocks-warning",
+    help="Warning threshold for bad blocks. Example: 20 -> 20% bad blocks",
+)
+@click.option(
+    "--bad-blocks-critical",
+    help="Critical threshold for bad blocks",
+)
 @click.pass_context
 @nagiosplugin.guarded
-def system_memory(ctx, used, warning, critical):
+def system_disk(ctx, used, warning, critical, bad_blocks_warning, bad_blocks_critical):
     check = nagiosplugin.Check(
         SystemDiskResource(
             cmd_options=ctx.obj,
@@ -132,6 +136,8 @@ def system_memory(ctx, used, warning, critical):
 
     check.add(nagiosplugin.ScalarContext(
         name="bad-blocks",
+        warning=bad_blocks_warning,
+        critical=bad_blocks_critical,
     ))
 
     check.add(nagiosplugin.ScalarContext(

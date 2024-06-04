@@ -27,6 +27,7 @@ class InterfaceResource(RouterOSCheckResource):
             cookie_filename: str,
             warning_values: List[str],
             critical_values: List[str],
+            default_values: List[str],
             override_values: List[str],
     ):
         super().__init__(cmd_options=cmd_options)
@@ -46,6 +47,7 @@ class InterfaceResource(RouterOSCheckResource):
 
         self._parsed_warning_values: Dict[str, str] = self.prepare_thresholds(warning_values)
         self._parsed_critical_values: Dict[str, str] = self.prepare_thresholds(critical_values)
+        self._parsed_default_values: Dict[str, str] = self.prepare_override_values(default_values)
         self._parsed_override_values: Dict[str, str] = self.prepare_override_values(override_values)
 
         self._routeros_metric_values = [
@@ -151,7 +153,6 @@ class InterfaceResource(RouterOSCheckResource):
                 "min": 0,
                 "uom": "c",
                 "rate": True,
-                "rate_percent_total_name": "speed-byte",
             },
             {
                 "name": "tx-byte",
@@ -159,6 +160,7 @@ class InterfaceResource(RouterOSCheckResource):
                 "min": 0,
                 "uom": "B",
                 "rate": True,
+                "rate_percent_total_name": "speed-byte",
             },
             {
                 "name": "tx-drop",
@@ -253,9 +255,12 @@ class InterfaceResource(RouterOSCheckResource):
         )
         call_results = tuple(call)
         for result in call_results:
-            interface_ethernet_data[result["name"]] = {
-                "speed": result["speed"],
-            }
+            # if "speed" in result:
+            if result["running"]:
+                if "speed" in result:
+                    interface_ethernet_data[result["name"]] = {
+                        "speed": result["speed"],
+                    }
 
         call = api.path(
             "/interface"
@@ -267,19 +272,23 @@ class InterfaceResource(RouterOSCheckResource):
             if self.ignore_disabled and result["disabled"]:
                 continue
 
-            if result["name"] in interface_ethernet_data:
-                result.update(interface_ethernet_data[result["name"]])
+            interface_data = dict(self._parsed_default_values.items())
+            interface_data.update(result)
 
-            result.update(self._parsed_override_values)
+            if interface_data["name"] in interface_ethernet_data:
+                interface_data.update(interface_ethernet_data[interface_data["name"]])
+
+            interface_data.update(self._parsed_override_values)
 
             if len(self.names) == 0:
-                self._interface_data[result["name"]] = result
+                self._interface_data[interface_data["name"]] = interface_data
             elif self.regex:
                 for name in self.names:
-                    if name.match(result["name"]):
-                        self._interface_data[result["name"]] = result
-            elif result["name"] in self.names:
-                self._interface_data[result["name"]] = result
+                    if name.match(interface_data["name"]):
+                        self._interface_data[interface_data["name"]] = interface_data
+            elif interface_data["name"] in self.names:
+                self._interface_data[interface_data["name"]] = interface_data
+
         return self._interface_data
 
     @property
@@ -380,6 +389,19 @@ class InterfaceRunningContext(BooleanContext):
     ),
 )
 @click.option(
+    "default_values",
+    "--value-default",
+    multiple=True,
+    help=(
+        "Set a default value if the value is not provided by RouterOS. "
+        "Format of the value must be compatible with RouterOS values. "
+        "Example: Set the default speed value for interfaces: "
+        "--value-override speed:10Gbps "
+        "Looks like there is a bug where RouterOS does not report the current "
+        "speed of the interface (RouterOS 7.8 - 7.14.2?). "
+    )
+)
+@click.option(
     "override_values",
     "--value-override",
     multiple=True,
@@ -414,7 +436,8 @@ class InterfaceRunningContext(BooleanContext):
 )
 @click.pass_context
 def interface(
-    ctx, names, regex, single, ignore_disabled, cookie_filename, warning_values, critical_values, override_values
+    ctx, names, regex, single, ignore_disabled, cookie_filename, warning_values, critical_values, default_values,
+    override_values
 ):
     """Check the state and the stats of interfaces"""
     check = nagiosplugin.Check()
@@ -426,6 +449,7 @@ def interface(
         single_interface=single,
         ignore_disabled=ignore_disabled,
         cookie_filename=cookie_filename,
+        default_values=default_values,
         warning_values=warning_values,
         critical_values=critical_values,
         override_values=override_values,

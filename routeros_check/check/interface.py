@@ -250,17 +250,19 @@ class InterfaceResource(RouterOSCheckResource):
 
         logger.info("Fetching data ...")
         interface_ethernet_data = {}
-        call = api.path(
-            "/interface/ethernet"
-        )
-        call_results = tuple(call)
+        interface_count = len(tuple(api.path("/interface/ethernet")))
+        call_results = tuple(api(
+            "/interface/ethernet/monitor",
+            **{
+                "once": "",
+                "numbers": f"{','.join([str(i) for i in range(interface_count)])}"
+            }
+        ))
         for result in call_results:
-            # if "speed" in result:
-            if result["running"]:
-                if "speed" in result:
-                    interface_ethernet_data[result["name"]] = {
-                        "speed": result["speed"],
-                    }
+            if "rate" in result:
+                interface_ethernet_data[result["name"]] = {
+                    "speed": result["rate"],
+                }
 
         call = api.path(
             "/interface"

@@ -33,9 +33,23 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
         self.state: Optional[str] = None
 
         self._routeros_metric_values = [
-            {"name": "adjacency", "type": self.parse_routeros_time_duration, "min": 0, "uom": "s"},
-            {"name": "state", "type": None},
-            {"name": "state-changes", "dst": "state_changes", "type": int},
+            {
+                "name": "adjacency",
+                "type": self.parse_routeros_time_duration,
+                "min": 0,
+                "uom": "s",
+                # on some devices, only available if state=Full
+                "missing_ok": True,
+            },
+            {
+                "name": "state",
+                "type": None,
+            },
+            {
+                "name": "state-changes",
+                "dst": "state_changes",
+                "type": int
+            },
         ]
         if self.routeros_version < RouterOSVersion("7"):
             self._routeros_metric_values += [

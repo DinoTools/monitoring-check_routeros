@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: PhiBo DinoTools (2021)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import click
 import librouteros
@@ -10,7 +10,7 @@ import nagiosplugin
 
 from ..cli import cli
 from ..context import BooleanContext
-from ..helper import logger, RouterOSVersion
+from ..helper import humanize_time, logger, RouterOSVersion
 from ..resource import RouterOSCheckResource
 
 
@@ -33,9 +33,23 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
         self.state: Optional[str] = None
 
         self._routeros_metric_values = [
-            {"name": "adjacency", "type": self.parse_routeros_time_duration, "min": 0, "uom": "s"},
-            {"name": "state", "type": None},
-            {"name": "state-changes", "dst": "state_changes", "type": int},
+            {
+                "name": "adjacency",
+                "type": self.parse_routeros_time_duration,
+                "min": 0,
+                "uom": "s",
+                # on some devices, only available if state=Full
+                "missing_ok": True,
+            },
+            {
+                "name": "state",
+                "type": None,
+            },
+            {
+                "name": "state-changes",
+                "dst": "state_changes",
+                "type": int
+            },
         ]
         if self.routeros_version < RouterOSVersion("7"):
             self._routeros_metric_values += [
@@ -103,23 +117,43 @@ class RoutingOSPFNeighborState(BooleanContext):
                 )
             return nagiosplugin.Result(
                 state=nagiosplugin.state.Critical,
-                hint=hint
+                hint=hint,
+                metric=metric,
             )
         elif metric.value in ("Down",):
             return self.result_cls(
                 state=nagiosplugin.state.Critical,
-                hint="Link to neighbor down"
+                hint="Link to neighbor down",
+                metric=metric,
             )
         elif metric.value in ("Full",):
             return self.result_cls(
                 state=nagiosplugin.state.Ok,
-                hint="Communicating with neighbor"
+                hint="Communicating with neighbor",
+                metric=metric,
             )
         else:
             return self.result_cls(
                 state=nagiosplugin.state.Warn,
-                hint=f"Link to neighbor not fully up, state: {metric.value}"
+                hint=f"Link to neighbor not fully up, state: {metric.value}",
+                metric=metric,
             )
+
+
+class RoutingOSPFNeighborSummary(nagiosplugin.Summary):
+    def ok(self, results: List[nagiosplugin.Result]):
+        result_parts: List[str] = []
+        for result in results:
+            if not result.metric:
+                continue
+
+            if result.metric.name == "adjacency":
+                result_parts.append(f"Adjacency: {humanize_time(result.metric.value)}")
+
+            if result.metric.name == "state":
+                result_parts.append(f"State: {result.metric.value}")
+
+        return " ".join(result_parts)
 
 
 @cli.command("routing.ospf.neighbors")
@@ -154,7 +188,8 @@ def routing_ospf_neighbors(ctx, area, instance, router_id):
         nagiosplugin.ScalarContext("ls_retransmits"),
         nagiosplugin.ScalarContext("ls_requests"),
         nagiosplugin.ScalarContext("db_summaries"),
-        RoutingOSPFNeighborState("state")
+        RoutingOSPFNeighborState("state"),
+        RoutingOSPFNeighborSummary(),
     )
 
     check.main(verbose=ctx.obj["verbose"])

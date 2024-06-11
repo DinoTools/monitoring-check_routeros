@@ -1,6 +1,29 @@
 Changelog
 =========
 
+0.10.0 - 2024-06-11
+-------------------
+
+### Added
+
+- * - Add cli option to specify connection timeout
+- system.disk - Add initial check
+
+### Changed
+
+- Update icinga2 config to reflect latest changes
+- interface - Add option for default values
+- routing.ospf.neighbors - Improve output
+- system.uptime - Improve output
+
+### Fixed
+
+- interface - Fix issue with getting the interface speed
+- routing.ospf.neighbors - Fix issue with adjacency
+- system.license - Fix license date parsing
+- system.uptime - Add warning and critical thresholds
+
+
 0.9.3 - 2023-12-27
 ------------------
 

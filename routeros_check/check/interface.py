@@ -298,23 +298,28 @@ class InterfaceResource(RouterOSCheckResource):
         return tuple(self.fetch_data().keys())
 
     def probe(self):
+        def get_cookie_filename(name: str) -> str:
+            format_values = {
+                "name": escape_filename(name),
+            }
+            for n in ["host", "hostname"]:
+                cmd_option_value = self._cmd_options.get(n)
+                format_values[n] = escape_filename(str(cmd_option_value))
+            return self.cookie_filename.format(
+                **format_values
+            )
+
         routeros_metrics = []
         data = self.fetch_data()
 
         if self.single_interface:
             if len(self.interface_names) == 1:
-                cookie_filename = self.cookie_filename.format(
-                    name=escape_filename(self.interface_names[0])
-                )
-                with nagiosplugin.Cookie(cookie_filename) as cookie:
+                with nagiosplugin.Cookie(get_cookie_filename(self.interface_names[0])) as cookie:
                     routeros_metrics += self.get_routeros_metric_item(data[self.interface_names[0]], cookie=cookie)
                 self._add_contexts(name=self.interface_names[0], values=data[self.interface_names[0]])
         else:
             for name in self.interface_names:
-                cookie_filename = self.cookie_filename.format(
-                    name=escape_filename(name)
-                )
-                with nagiosplugin.Cookie(cookie_filename) as cookie:
+                with nagiosplugin.Cookie(get_cookie_filename(name)) as cookie:
                     routeros_metrics += self.get_routeros_metric_item(data[name], name_prefix=f"{name} ", cookie=cookie)
                 self._add_contexts(name=name, values=data[name], metric_prefix="{name} ")
 
@@ -385,9 +390,11 @@ class InterfaceRunningContext(BooleanContext):
     "cookie_filename",
     default="/tmp/check_routeros_interface_{name}.data",
     help=(
-        "The filename to use to store the information to calculate the rate. '{name}' will be replaced with an "
-        "internal uniq id. It Will create one file per interface."
-        "(Default: /tmp/check_routeros_interface_{name}.data)"
+        "The filename to use to store the information to calculate the rate. '{name}' will be replaced with the "
+        "interface name. Also '{host}' and '{hostname}' will be replaced with the values provided as commandline "
+        "options. You must create uniq filenames to get the correct rate. "
+        "(Default: /tmp/check_routeros_interface_{name}.data) "
+        "If multiple devices are checked use something like: /tmp/check_routeros_interface_{host}_{name}.data"
     ),
 )
 @click.option(

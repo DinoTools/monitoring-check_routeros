@@ -1,6 +1,18 @@
 Changelog
 =========
 
+0.10.1 - 2024-07-15
+-------------------
+
+### Added
+
+- interface - New variables for the cookie filename
+
+### Fixed
+
+- Bump required Python version from 3.6+ to 3.8+ in the documentation, to reflect older code changes
+- * - Fix issue with boolean metric values (Might effect: system.ntp.client, interface, interface.gre, routing.bgp.peer)
+
 0.10.0 - 2024-06-11
 -------------------
 

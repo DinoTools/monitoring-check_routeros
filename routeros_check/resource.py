@@ -335,7 +335,12 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                     logger.warning(f"Error parsing value with name {metric_value_name}", exc_info=True)
                     raise e
 
-            value = value * metric_value.get("factor", 1)
+            value_factor = metric_value.get("factor")
+            if value_factor is not None:
+                if isinstance(value, bool):
+                    logger.warning(f"Unable to use factor with bool metric {metric_value_name}", exc_info=True)
+                    raise ValueError(f"Unable to use factor with bool metric {metric_value_name}")
+                value = value * value_factor
 
             extra_kwargs = {}
             for n in ("min", "max", "uom"):

@@ -40,7 +40,7 @@ It uses the API to fetch the required information.
 Requirements
 ------------
 
-- [Python](https://www.python.org/) >= 3.6
+- [Python](https://www.python.org/) >= 3.8 (Some checks might still run with older Python 3)
 - Python Packages
     - [Click](https://pypi.org/project/click/)
     - [librouteros](https://pypi.org/project/librouteros/)

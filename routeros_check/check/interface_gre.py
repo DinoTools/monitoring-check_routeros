@@ -19,12 +19,13 @@ class InterfaceGREResource(RouterOSCheckResource):
     def __init__(
             self,
             cmd_options: Dict[str, Any],
+            check: nagiosplugin.Check,
             names: List[str],
             regex: bool,
             single_interface: bool,
             ignore_disabled: bool,
     ):
-        super().__init__(cmd_options=cmd_options)
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._interface_data: Optional[Dict[str, Any]] = None
         self.names: List[Union[Any]] = names
@@ -149,16 +150,17 @@ class InterfaceGRERunningContext(BooleanContext):
 @click.pass_context
 def interface_gre(ctx, names, regex, single, ignore_disabled):
     """Check the state of a GRE interface."""
+    check = nagiosplugin.Check()
+
     resource = InterfaceGREResource(
         cmd_options=ctx.obj,
+        check=check,
         names=names,
         regex=regex,
         single_interface=single,
         ignore_disabled=ignore_disabled,
     )
-    check = nagiosplugin.Check(
-        resource,
-    )
+    check.add(resource)
 
     if single:
         if len(resource.interface_names) == 1:

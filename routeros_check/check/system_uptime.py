@@ -15,8 +15,8 @@ from ..resource import RouterOSCheckResource
 class SystemUptimeResource(RouterOSCheckResource):
     name = "UPTIME"
 
-    def __init__(self, cmd_options):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check: nagiosplugin.Check):
+        super().__init__(cmd_options=cmd_options, check=check)
 
     def probe(self):
         api = self._connect_api()
@@ -73,9 +73,12 @@ class UptimeSimpleScalarContext(nagiosplugin.ScalarContext):
 @nagiosplugin.guarded
 def system_uptime(ctx, warning, critical):
     """Get Uptime of a device"""
-    check = nagiosplugin.Check(
+    check = nagiosplugin.Check()
+
+    check.add(
         SystemUptimeResource(
             cmd_options=ctx.obj,
+            check=check,
         ),
         UptimeSimpleScalarContext(
             name="uptime",

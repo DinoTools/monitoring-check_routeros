@@ -23,9 +23,7 @@ class SystemFanResource(RouterOSCheckResource):
         critical_values: List[str],
         use_regex: bool
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.fan_names: Set[str] = set()
         self.fan_values: Dict[str, int] = {}

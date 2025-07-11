@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from datetime import date, datetime, time
 from decimal import Decimal
+from pprint import pformat
 import re
 import ssl
 from typing import Any, Dict, List, Optional, Union
@@ -50,8 +51,9 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         flags=re.IGNORECASE
     )
 
-    def __init__(self, cmd_options: Dict[str, Any]):
+    def __init__(self, cmd_options: Dict[str, Any], check: nagiosplugin.Check):
         self._cmd_options = cmd_options
+        self._check = check
         self._routeros_metric_values: List[Dict[str, Any]] = []
         self._routeros_version: Optional[RouterOSVersion] = None
         self._api: Optional[librouteros.api.Api] = None
@@ -323,7 +325,14 @@ class RouterOSCheckResource(nagiosplugin.Resource):
         #
         for metric_value in self._routeros_metric_values:
             metric_value_name = metric_value["name"]
-            if metric_value.get("missing_ok", False) and metric_value_name not in api_result:
+            if metric_value_name not in api_result:
+                if not metric_value.get("missing_ok", False):
+                    self._check.results.add(
+                        nagiosplugin.Result(
+                            nagiosplugin.state.Unknown,
+                            hint=f"Required metric with name '{metric_value_name}' not found in response"
+                        )
+                    )
                 continue
 
             value = api_result[metric_value_name]
@@ -417,8 +426,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                 elapsed_seconds = delta_time.total_seconds()
 
         if isinstance(api_results, dict):
-            from pprint import pprint
-            pprint(api_results)
+            logger.debug(f"Extracted values {pformat(api_results)}")
             api_results = self._convert_v6_list_to_v7(api_results=api_results)
 
         #
@@ -426,7 +434,14 @@ class RouterOSCheckResource(nagiosplugin.Resource):
             metric_value_name = metric_value["name"]
             api_result = get_api_result_by_name(api_results, metric_value_name)
 
-            if metric_value.get("missing_ok", False) and api_result is None:
+            if api_result is None:
+                if not metric_value.get("missing_ok", False):
+                    self._check.results.add(
+                        nagiosplugin.Result(
+                            nagiosplugin.state.Unknown,
+                            hint=f"Required metric with name '{metric_value_name}' not found in response"
+                        )
+                    )
                 continue
 
             value = api_result["value"]

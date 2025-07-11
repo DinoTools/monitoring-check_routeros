@@ -20,11 +20,12 @@ class RoutingOSPFNeighborResource(RouterOSCheckResource):
     def __init__(
             self,
             cmd_options: Dict[str, Any],
+            check: nagiosplugin.Check,
             instance: str,
             router_id: str,
             area: Optional[str] = None
     ):
-        super().__init__(cmd_options=cmd_options)
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.area = area
         self.instance = instance
@@ -174,14 +175,15 @@ class RoutingOSPFNeighborSummary(nagiosplugin.Summary):
 @click.pass_context
 def routing_ospf_neighbors(ctx, area, instance, router_id):
     """Check the state of an OSPF neighbor"""
-    resource = RoutingOSPFNeighborResource(
-        cmd_options=ctx.obj,
-        area=area,
-        instance=instance,
-        router_id=router_id,
-    )
-    check = nagiosplugin.Check(
-        resource,
+    check = nagiosplugin.Check()
+
+    check.add(
+        RoutingOSPFNeighborResource(
+            cmd_options=ctx.obj,
+            area=area,
+            instance=instance,
+            router_id=router_id,
+        ),
         nagiosplugin.ScalarContext("priority"),
         nagiosplugin.ScalarContext("adjacency"),
         nagiosplugin.ScalarContext("state_changes"),

@@ -22,9 +22,7 @@ class SystemClockResource(RouterOSCheckResource):
         cmd_options,
         check: nagiosplugin.Check,
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
     def probe(self):
         api = self._connect_api()
@@ -76,12 +74,11 @@ def system_clock(ctx, warning, critical):
     """This command reads the information from /system/clock to extract the required information."""
     check = nagiosplugin.Check()
 
-    resource = SystemClockResource(
-        cmd_options=ctx.obj,
-        check=check,
-    )
     check.add(
-        resource,
+        SystemClockResource(
+            cmd_options=ctx.obj,
+            check=check,
+        ),
         SimplePositiveFloatContext(
             name="time-diff",
             warning=warning,

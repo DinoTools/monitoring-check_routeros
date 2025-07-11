@@ -19,11 +19,12 @@ class RoutingBGPPeerResource(RouterOSCheckResource):
     def __init__(
             self,
             cmd_options: Dict[str, Any],
+            check: nagiosplugin.Check,
             names: List[str],
             regex: bool,
             single_peer: bool,
     ):
-        super().__init__(cmd_options=cmd_options)
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._peer_data: Optional[Dict[str, Any]] = None
         self.names: List[Union[Any]] = names
@@ -153,15 +154,19 @@ class RoutingBGPPeerSummary(nagiosplugin.Summary):
 )
 @click.pass_context
 def routing_bgp_peer(ctx, names, regex, single):
+    check = nagiosplugin.Check()
+
     resource = RoutingBGPPeerResource(
         cmd_options=ctx.obj,
+        check=check,
         names=names,
         regex=regex,
         single_peer=single,
     )
-    check = nagiosplugin.Check(
-        resource,
+
+    check.add(
         RoutingBGPPeerSummary(),
+        resource,
     )
 
     if single:

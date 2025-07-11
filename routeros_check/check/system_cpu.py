@@ -26,9 +26,7 @@ class SystemCpuResource(RouterOSCheckResource):
         critical_values: List[str],
         use_regex: bool
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.values: Dict[str, float] = {}
         self.use_regex: bool = use_regex
@@ -164,15 +162,14 @@ def system_cpu(ctx, load_warning, load_critical, warning_values, critical_values
     """
     check = nagiosplugin.Check()
 
-    resource = SystemCpuResource(
-        cmd_options=ctx.obj,
-        check=check,
-        warning_values=warning_values,
-        critical_values=critical_values,
-        use_regex=use_regex,
-    )
     check.add(
-        resource,
+        SystemCpuResource(
+            cmd_options=ctx.obj,
+            check=check,
+            warning_values=warning_values,
+            critical_values=critical_values,
+            use_regex=use_regex,
+        ),
         nagiosplugin.ScalarContext(
             name="cpu-load",
             warning=load_warning,

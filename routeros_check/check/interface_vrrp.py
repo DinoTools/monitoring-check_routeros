@@ -15,8 +15,8 @@ from ..resource import RouterOSCheckResource
 class InterfaceVrrpCheck(RouterOSCheckResource):
     name = "VRRP"
 
-    def __init__(self, cmd_options, name, master_must):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check: nagiosplugin.Check, name, master_must):
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._name = name
         self.backup = None
@@ -108,9 +108,12 @@ class InterfaceVrrpMaster(BooleanContext):
 @click.pass_context
 def interface_vrrp(ctx, name, master):
     """Check the state of VRRP interfaces"""
-    check = nagiosplugin.Check(
+    check = nagiosplugin.Check()
+
+    check.add(
         InterfaceVrrpCheck(
             cmd_options=ctx.obj,
+            check=check,
             name=name,
             master_must=master,
         ),

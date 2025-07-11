@@ -17,8 +17,8 @@ from ..resource import RouterOSCheckResource
 class SystemMemoryResource(RouterOSCheckResource):
     name = "MEMORY"
 
-    def __init__(self, cmd_options):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check: nagiosplugin.Check):
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.memory_total = None
 
@@ -87,10 +87,13 @@ class SystemMemorySummary(nagiosplugin.summary.Summary):
 @click.pass_context
 @nagiosplugin.guarded
 def system_memory(ctx, used, warning, critical):
-    check = nagiosplugin.Check(
+    check = nagiosplugin.Check()
+
+    check.add(
         SystemMemoryResource(
             cmd_options=ctx.obj,
-        )
+            check=check,
+        ),
     )
 
     if used:

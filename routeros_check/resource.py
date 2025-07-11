@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 from datetime import date, datetime, time
 from decimal import Decimal
+from pprint import pformat
 import re
 import ssl
 from typing import Any, Dict, List, Optional, Union
@@ -425,8 +426,7 @@ class RouterOSCheckResource(nagiosplugin.Resource):
                 elapsed_seconds = delta_time.total_seconds()
 
         if isinstance(api_results, dict):
-            from pprint import pprint
-            pprint(api_results)
+            logger.debug(f"Extracted values {pformat(api_results)}")
             api_results = self._convert_v6_list_to_v7(api_results=api_results)
 
         #

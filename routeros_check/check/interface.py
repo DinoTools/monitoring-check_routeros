@@ -134,6 +134,7 @@ class InterfaceResource(RouterOSCheckResource):
             },
             {
                 "name": "rx-drop",
+                "missing_ok": True,  # Missing for some interface like sfp28 and qsfp28
                 "type": int,
                 "min": 0,
                 "uom": "c",
@@ -141,6 +142,7 @@ class InterfaceResource(RouterOSCheckResource):
             },
             {
                 "name": "rx-error",
+                "missing_ok": True,  # Missing for some interface like sfp28 and qsfp28
                 "type": int,
                 "min": 0,
                 "uom": "c",
@@ -163,6 +165,7 @@ class InterfaceResource(RouterOSCheckResource):
             },
             {
                 "name": "tx-drop",
+                "missing_ok": True,  # Missing for some interface like sfp28 and qsfp28
                 "type": int,
                 "min": 0,
                 "uom": "c",
@@ -170,6 +173,7 @@ class InterfaceResource(RouterOSCheckResource):
             },
             {
                 "name": "tx-error",
+                "missing_ok": True,  # Missing for some interface like sfp28 and qsfp28
                 "type": int,
                 "min": 0,
                 "uom": "c",

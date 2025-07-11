@@ -21,9 +21,8 @@ class SystemUpdateResource(RouterOSCheckResource):
         check_for_update: bool = False,
         latest_version: Optional[str] = None,
     ):
-        super().__init__(cmd_options=cmd_options)
+        super().__init__(cmd_options=cmd_options, check=check)
 
-        self._check = check
         self._check_for_update = check_for_update
         self._installed_version = None
         self._latest_version = None

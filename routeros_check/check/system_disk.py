@@ -17,8 +17,8 @@ from ..resource import RouterOSCheckResource
 class SystemDiskResource(RouterOSCheckResource):
     name = "DISK"
 
-    def __init__(self, cmd_options):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check):
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.total_hdd_space: Optional[int] = None
         self._routeros_metric_values = [
@@ -107,10 +107,13 @@ class SystemDiskSummary(nagiosplugin.summary.Summary):
 @click.pass_context
 @nagiosplugin.guarded
 def system_disk(ctx, used, warning, critical, bad_blocks_warning, bad_blocks_critical):
-    check = nagiosplugin.Check(
+    check = nagiosplugin.Check()
+
+    check.add(
         SystemDiskResource(
             cmd_options=ctx.obj,
-        )
+            check=check,
+        ),
     )
 
     if used:

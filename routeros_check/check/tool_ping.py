@@ -15,8 +15,8 @@ from ..resource import RouterOSCheckResource
 class ToolPingCheck(RouterOSCheckResource):
     name = "PING"
 
-    def __init__(self, cmd_options, address):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check: nagiosplugin.Check, address):
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._address = address
         self._max_packages = 1
@@ -109,42 +109,42 @@ class ToolPingCheck(RouterOSCheckResource):
 @click.pass_context
 def tool_ping(ctx, address, packet_loss_warning, packet_loss_critical, ttl_warning, ttl_critical):
     """Execute a ping command on the device to check other devices"""
-    check = nagiosplugin.Check(
+    check = nagiosplugin.Check()
+
+    check.add(
         ToolPingCheck(
             cmd_options=ctx.obj,
+            check=check,
             address=address
-        )
+        ),
+        nagiosplugin.ScalarContext(
+            name="packet_loss",
+            warning=packet_loss_warning,
+            critical=packet_loss_critical
+        ),
+        nagiosplugin.ScalarContext(
+            name="sent"
+        ),
+        nagiosplugin.ScalarContext(
+            name="received"
+        ),
+        nagiosplugin.ScalarContext(
+            name="rtt_avg"
+        ),
+        nagiosplugin.ScalarContext(
+            name="rtt_min"
+        ),
+        nagiosplugin.ScalarContext(
+            name="rtt_max"
+        ),
+        nagiosplugin.ScalarContext(
+            name="size"
+        ),
+        nagiosplugin.ScalarContext(
+            name="ttl",
+            warning=ttl_warning,
+            critical=ttl_critical
+        ),
     )
-
-    check.add(nagiosplugin.ScalarContext(
-        name="packet_loss",
-        warning=packet_loss_warning,
-        critical=packet_loss_critical
-    ))
-    check.add(nagiosplugin.ScalarContext(
-        name="sent"
-    ))
-    check.add(nagiosplugin.ScalarContext(
-        name="received"
-    ))
-
-    check.add(nagiosplugin.ScalarContext(
-        name="rtt_avg"
-    ))
-    check.add(nagiosplugin.ScalarContext(
-        name="rtt_min"
-    ))
-    check.add(nagiosplugin.ScalarContext(
-        name="rtt_max"
-    ))
-
-    check.add(nagiosplugin.ScalarContext(
-        name="size"
-    ))
-    check.add(nagiosplugin.ScalarContext(
-        name="ttl",
-        warning=ttl_warning,
-        critical=ttl_critical
-    ))
 
     check.main(verbose=ctx.obj["verbose"])

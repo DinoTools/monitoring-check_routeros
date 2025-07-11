@@ -14,8 +14,8 @@ from ..resource import RouterOSCheckResource
 class SystemLicenseResource(RouterOSCheckResource):
     name = "License"
 
-    def __init__(self, cmd_options):
-        super().__init__(cmd_options=cmd_options)
+    def __init__(self, cmd_options, check: nagiosplugin.Check):
+        super().__init__(cmd_options=cmd_options, check=check)
 
         def days_left(value):
             time_delta = self.parse_routeros_datetime(value) - datetime.now()
@@ -119,10 +119,14 @@ class SystemLicenseLevelContext(nagiosplugin.Context):
 @click.pass_context
 @nagiosplugin.guarded
 def system_license(ctx, deadline_warning, deadline_critical, next_renewal_warning, next_renewal_critical, levels):
+    check = nagiosplugin.Check()
+
     resource = SystemLicenseResource(
         cmd_options=ctx.obj,
+        check=check,
     )
-    check = nagiosplugin.Check(resource)
+
+    check.add(resource)
 
     if resource.has_renewal:
         check.add(

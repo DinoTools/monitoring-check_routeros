@@ -20,9 +20,7 @@ class SystemPsuResource(RouterOSCheckResource):
         self, cmd_options, check: nagiosplugin.Check, warning_values: List[str], critical_values: List[str],
         no_psu_ok: bool,
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self.psu_names: Set[str] = set()
         self.psu_states: Dict[str, str] = {}

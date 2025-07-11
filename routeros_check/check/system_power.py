@@ -17,9 +17,7 @@ class SystemPowerResource(RouterOSCheckResource):
         cmd_options,
         check: nagiosplugin.Check,
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._routeros_metric_values = [
             {"name": "power-consumption", "type": float},

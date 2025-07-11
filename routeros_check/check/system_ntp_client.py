@@ -28,9 +28,7 @@ class SystemNtpClientResource(RouterOSCheckResource):
         stratum_warning: Optional[int] = None,
         stratum_critical: Optional[int] = None,
     ):
-        super().__init__(cmd_options=cmd_options)
-
-        self._check = check
+        super().__init__(cmd_options=cmd_options, check=check)
 
         self._expected_servers = expected_servers
         self._offset_warning = offset_warning
@@ -239,19 +237,18 @@ def system_clock(ctx, last_update_before_warning, last_update_before_critical, o
     """
     check = nagiosplugin.Check()
 
-    resource = SystemNtpClientResource(
-        cmd_options=ctx.obj,
-        check=check,
-        last_update_before_warning=last_update_before_warning,
-        last_update_before_critical=last_update_before_critical,
-        offset_warning=offset_warning,
-        offset_critical=offset_critical,
-        stratum_warning=stratum_warning,
-        stratum_critical=stratum_critical,
-        expected_servers=expected_servers,
-    )
     check.add(
-        resource,
+        SystemNtpClientResource(
+            cmd_options=ctx.obj,
+            check=check,
+            last_update_before_warning=last_update_before_warning,
+            last_update_before_critical=last_update_before_critical,
+            offset_warning=offset_warning,
+            offset_critical=offset_critical,
+            stratum_warning=stratum_warning,
+            stratum_critical=stratum_critical,
+            expected_servers=expected_servers,
+        ),
         SystemNtpClientSummary(),
         BooleanContext(
             name="enabled",

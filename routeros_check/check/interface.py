@@ -30,9 +30,8 @@ class InterfaceResource(RouterOSCheckResource):
             default_values: List[str],
             override_values: List[str],
     ):
-        super().__init__(cmd_options=cmd_options)
+        super().__init__(cmd_options=cmd_options, check=check)
 
-        self._check = check
         self._interface_data: Optional[Dict[str, Any]] = None
         self.names: List[Union[Any]] = names
         self.regex = regex
@@ -450,6 +449,7 @@ def interface(
 ):
     """Check the state and the stats of interfaces"""
     check = nagiosplugin.Check()
+
     resource = InterfaceResource(
         cmd_options=ctx.obj,
         check=check,
@@ -464,7 +464,10 @@ def interface(
         override_values=override_values,
     )
 
-    check.add(resource)
+    check.add(
+        resource,
+    )
+
     check.results.add(
         nagiosplugin.Result(
             nagiosplugin.state.Ok,

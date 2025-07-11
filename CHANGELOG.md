@@ -1,6 +1,22 @@
 Changelog
 =========
 
+0.11.0 - 2025-07-11
+-------------------
+
+### Changed
+
+- The following interface metrics are now ignored if they are not reported by a device:
+  - `rx-drop`
+  - `rx-error`
+  - `tx-drop`
+  - `tx-error`
+
+### Fixed
+
+- Now logs an error instead of raising an exception when a metric is missing from a device.
+- Replaced usage of `pprint` with the standard logging module for improved output consistency.
+
 0.10.1 - 2024-07-15
 -------------------
 

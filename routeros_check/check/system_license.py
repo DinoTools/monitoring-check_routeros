@@ -27,7 +27,7 @@ class SystemLicenseResource(RouterOSCheckResource):
         )
         result = tuple(call)[0]
 
-        self.has_renewal = result["board-name"].lower() == "chr"
+        self.has_renewal = result["board-name"].lower().startswith("chr")
 
         self.deadline_datetime: Optional[datetime] = None
         self.next_renewal_datetime: Optional[datetime] = None

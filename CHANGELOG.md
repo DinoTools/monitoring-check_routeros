@@ -1,6 +1,15 @@
 Changelog
 =========
 
+0.11.1 - 2025-10-21
+-------------------
+
+### Fixed
+
+- Improved system identification in virtualized environments:
+  The board name for Cloud Hosted Router (CHR) installations now displays the specific virtualization platform name instead of the generic "CHR".
+  Example: "CHR" -> "CHR VMware, Inc. VMware Virtual Platform"
+
 0.11.0 - 2025-07-11
 -------------------
 

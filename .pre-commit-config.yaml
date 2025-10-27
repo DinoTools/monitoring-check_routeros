@@ -85,7 +85,7 @@ repos:
   # The REUSE helper tool assists with achieving and confirming REUSE compliance.
   # See: https://reuse.software/
   - repo: https://github.com/fsfe/reuse-tool
-    rev: v6.1.2
+    rev: v6.2.0
     hooks:
       - id: reuse
 

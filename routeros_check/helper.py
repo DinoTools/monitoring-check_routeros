@@ -4,7 +4,7 @@
 from datetime import timedelta
 import importlib
 import logging
-import os
+import pkgutil
 import re
 from typing import List, Optional, Union
 
@@ -132,25 +132,13 @@ def load_modules(pkg_names: Optional[List] = None):
 
         logger.debug("Base package: %s", base_pkg)
 
-        path = base_pkg.__path__[0]
-        logger.debug("Base path: %s", path)
-
-        for filename in os.listdir(path):
-            if filename == "__init__.py":
+        # pkgutil.iter_modules() also works with PyInstaller's frozen importer,
+        # unlike an os.listdir() based directory scan.
+        for module_info in pkgutil.iter_modules(base_pkg.__path__):
+            if module_info.name == "__init__":
                 continue
 
-            pkg_name = None
-            if os.path.isdir(os.path.join(path, filename)) and \
-                    os.path.exists(os.path.join(path, filename, "__init__.py")):
-                pkg_name = filename
-
-            if filename[-3:] == '.py':
-                pkg_name = filename[:-3]
-
-            if pkg_name is None:
-                continue
-
-            mod_name = "{}.{}".format(base_pkg_name, pkg_name)
+            mod_name = "{}.{}".format(base_pkg_name, module_info.name)
             try:
                 importlib.import_module(mod_name, package=__package__)
                 logger.info("Loaded '%s' successfully", mod_name)

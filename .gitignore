@@ -36,6 +36,11 @@ share/python-wheels/
 MANIFEST
 routeros_check/_scm_version.py
 
+## Build
+build/
+.venv/
+check_routeros.spec
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
